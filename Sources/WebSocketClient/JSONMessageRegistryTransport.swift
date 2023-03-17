@@ -13,7 +13,9 @@
 
 import Foundation
 
-public final class JSONTransport<Message: MessageType>: MessageTransport {
+/// A `MessageTransport` that will try to decode incoming messages based on previously registered
+/// `MessageType`s and call their handler when they arrive.
+public final class JSONMessageRegistryTransport<Message: MessageType>: MessageTransport {
     private let messageEncoder: JSONEncoder
     private let messageDecoder: JSONDecoder
     internal let messageRegister: MessageRegister = .init()
@@ -23,16 +25,13 @@ public final class JSONTransport<Message: MessageType>: MessageTransport {
     }
     
     let base: MessageTransport
-//    let handle: (_ message: URLSessionWebSocketTask.Message, _ base: MessageTransport) async throws -> Handling
     
     public init(
         base: MessageTransport,
-//        handle: @escaping (_ message: URLSessionWebSocketTask.Message, _ base: MessageTransport) async throws -> Handling,
         messageEncoder: JSONEncoder = .init(),
         messageDecoder: JSONDecoder = .init()
     ) {
         self.base = base
-//        self.handle = handle
         self.messageEncoder = messageEncoder
         self.messageDecoder = messageDecoder
         messageDecoder.userInfo[.messageRegister] = self.messageRegister
@@ -86,7 +85,7 @@ public final class JSONTransport<Message: MessageType>: MessageTransport {
     }
 }
 
-extension JSONTransport {
+extension JSONMessageRegistryTransport {
     public func unregister(_ name: MessageName) {
         messageRegister.unregister(name)
     }
