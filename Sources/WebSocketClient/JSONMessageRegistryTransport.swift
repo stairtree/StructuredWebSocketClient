@@ -20,10 +20,6 @@ public final class JSONMessageRegistryTransport<Message: MessageType>: MessageTr
     private let messageDecoder: JSONDecoder
     internal let messageRegister: MessageRegister = .init()
     
-    public enum Handling {
-        case handled, unhandled(URLSessionWebSocketTask.Message)
-    }
-    
     let base: MessageTransport
     
     public init(
@@ -47,8 +43,14 @@ public final class JSONMessageRegistryTransport<Message: MessageType>: MessageTr
     }
     
     public func handle(_ received: URLSessionWebSocketTask.Message) async throws {
-        // call the handler of the registered message
-        try self.parse(received).handle()
+        do {
+            // call the handler of the registered message
+            try self.parse(received).handle()
+            // forward to base
+            try await base.handle(received)
+        } catch {
+            try await base.handle(received)
+        }
     }
     
     /// sends as string
