@@ -20,14 +20,14 @@ public final class InterceptingTransport: MessageTransport {
     }
     
     let base: MessageTransport
-    let handle: (_ message: URLSessionWebSocketTask.Message, _ base: MessageTransport) async throws -> Handling
+    let _handle: (_ message: URLSessionWebSocketTask.Message) async throws -> Handling
     
     public init(
         base: MessageTransport,
-        handle: @escaping (_ message: URLSessionWebSocketTask.Message, _ base: MessageTransport) async throws -> Handling
+        handle: @escaping (_ message: URLSessionWebSocketTask.Message) async throws -> Handling
     ) {
         self.base = base
-        self.handle = handle
+        self._handle = handle
     }
     
     public var transportDelegate: MessageTransportDelegate? {
@@ -40,7 +40,7 @@ public final class InterceptingTransport: MessageTransport {
     }
     
     public func handle(_ received: URLSessionWebSocketTask.Message) async throws -> URLSessionWebSocketTask.Message? {
-        switch try await self.handle(received, base) {
+        switch try await self._handle(received) {
         case .handled:
             return nil
         case .unhandled(let message):
