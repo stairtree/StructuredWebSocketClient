@@ -1,6 +1,6 @@
 //===----------------------------------------------------------------------===//
 //
-// This source file is part of the CodableWebSocket open source project
+// This source file is part of the StructuredWebSocketClient open source project
 //
 // Copyright (c) Stairtree GmbH
 // Licensed under the MIT license

@@ -1,7 +1,7 @@
 // swift-tools-version:5.7
 //===----------------------------------------------------------------------===//
 //
-// This source file is part of the CodableWebSocket open source project
+// This source file is part of the StructuredWebSocketClient open source project
 //
 // Copyright (c) Stairtree GmbH
 // Licensed under the MIT license
@@ -15,7 +15,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "CodableWebSocketClient",
+    name: "StructuredWebSocketClient",
     platforms: [.iOS(.v15), .macOS(.v12), .watchOS(.v8), .tvOS(.v15)],
     products: [
         .library(
