@@ -15,10 +15,10 @@ import Foundation
 @_exported import CodableMessage
 
 public protocol WebSocketClientDelegate: AnyObject {
-    func webSocketClient<M>(didChangeState newState: WebSocketClient<M>.State) where M : MessageType
+    func webSocketClient(didChangeState newState: WebSocketClient.State)
 }
 
-public final class WebSocketClient<Message: MessageType> {
+public final class WebSocketClient {
     public enum State: Equatable, Hashable {
         case disconnecting, disconnected, connecting, connected
     }
@@ -33,24 +33,15 @@ public final class WebSocketClient<Message: MessageType> {
     
     public let label: String
     internal let transport: MessageTransport
-    private let messageEncoder: JSONEncoder
-    private let messageDecoder: JSONDecoder
     private var messageTask: Task<Void, Error>?
-    
-    internal let messageRegister: MessageRegister = .init()
     
     public init(
         label: String = "",
-        transport: MessageTransport,
-        messageEncoder: JSONEncoder = .init(),
-        messageDecoder: JSONDecoder = .init()
+        transport: MessageTransport
     ) {
         self.label = label
         self.transport = transport
-        self.messageEncoder = messageEncoder
-        self.messageDecoder = messageDecoder
-        transport.transportDelegate = self
-        messageDecoder.userInfo[.messageRegister] = self.messageRegister
+        self.transport.transportDelegate = self
     }
     
     deinit {
@@ -86,25 +77,8 @@ public final class WebSocketClient<Message: MessageType> {
         }
     }
     
-    /// sends as string
-    public func send<M>(_ message: M) async throws where M: Encodable {
-        let data = try messageEncoder.encode(message)
-        let str = String(decoding: data, as: UTF8.self)
-        try await transport.send(.string(str))
-    }
-    
-    // Default handling for JSON messages. Other transports can elect to call this
-    public func parse(_ received: URLSessionWebSocketTask.Message) throws -> Message {
-        let message: Message
-        switch received {
-        case let .data(data):
-            message = try self.messageDecoder.decode(Message.self, from: data)
-        case let .string(text):
-            message = try self.messageDecoder.decode(Message.self, from: Data(text.utf8))
-        @unknown default:
-            throw WebSocketError.unknownMessageFormat
-        }
-        return message
+    public func send(_ message: URLSessionWebSocketTask.Message) async throws {
+        try await transport.send(message)
     }
 }
 
@@ -125,24 +99,6 @@ extension WebSocketClient: MessageTransportDelegate {
 
 public enum WebSocketError: Error {
     case unknownMessageFormat
-}
-
-extension WebSocketClient {
-    public func unregister(_ name: MessageName) {
-        messageRegister.unregister(name)
-    }
-    
-    public func unregisterAll() {
-        messageRegister.unregisterAll()
-    }
-    
-    public func register(_ name: MessageName) {
-        messageRegister.register(name)
-    }
-    
-    public func name(for value: String) -> MessageName? {
-        messageRegister.name(for: value)
-    }
 }
 
 extension URLSessionWebSocketTask.Message {
