@@ -22,9 +22,6 @@ let package = Package(
             name: "WebSocketClient",
             targets: ["WebSocketClient"]),
         .library(
-            name: "CodableMessage",
-            targets: ["CodableMessage"]),
-        .library(
             name: "WebSocketClientTestSupport",
             targets: ["WebSocketClientTestSupport"]),
     ],
@@ -32,11 +29,6 @@ let package = Package(
     targets: [
         .target(
             name: "WebSocketClient",
-            dependencies: [
-                .byName(name: "CodableMessage")
-            ]),
-        .target(
-            name: "CodableMessage",
             dependencies: []),
         .target(
             name: "WebSocketClientTestSupport",

@@ -12,7 +12,6 @@
 //===----------------------------------------------------------------------===//
 
 import Foundation
-@_exported import CodableMessage
 
 public protocol WebSocketClientDelegate: AnyObject {
     func webSocketClient(didChangeState newState: WebSocketClient.State)
