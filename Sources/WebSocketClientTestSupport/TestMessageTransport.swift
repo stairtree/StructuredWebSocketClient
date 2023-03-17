@@ -40,8 +40,8 @@ public final class TestMessageTransport: MessageTransport {
         // print("Sending: \(String(decoding: try message.data(), as: UTF8.self))")
     }
     
-    public func handle(_ received: URLSessionWebSocketTask.Message) throws -> URLSessionWebSocketTask.Message? {
-        received
+    public func handle(_ received: URLSessionWebSocketTask.Message) throws {
+        //
     }
     
     public func cancel(with closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {

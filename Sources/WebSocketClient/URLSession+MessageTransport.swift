@@ -37,8 +37,8 @@ public final class URLSessionWebSocketTransport: MessageTransport {
         try await task.send(message)
     }
     
-    public func handle(_ received: URLSessionWebSocketTask.Message) throws -> URLSessionWebSocketTask.Message? {
-        received
+    public func handle(_ received: URLSessionWebSocketTask.Message) throws {
+        
     }
 
     public func cancel(with closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
