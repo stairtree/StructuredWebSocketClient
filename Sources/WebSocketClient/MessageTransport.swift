@@ -17,7 +17,7 @@ public protocol MessageTransport {
     var transportDelegate: MessageTransportDelegate? { get nonmutating set }
     func receive() async throws -> URLSessionWebSocketTask.Message
     func send(_ message: URLSessionWebSocketTask.Message) async throws
-    func handle(_ received: URLSessionWebSocketTask.Message) async throws
+    func handle(_ received: URLSessionWebSocketTask.Message) throws
     func cancel(with closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?)
     func resume()
 }

@@ -64,7 +64,7 @@ public final class WebSocketClient {
                     let received = try await self.transport.receive()
                     // If a transport handles the message it will return `nil`.
                     // The transport MUST call the message's `.handle(_:)` method then.
-                    try await self.transport.handle(received)
+                    try self.transport.handle(received)
                 } catch {
                     print("\(error)")
                     // FIXME: This should check for the error.

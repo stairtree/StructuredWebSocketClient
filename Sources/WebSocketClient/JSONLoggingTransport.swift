@@ -32,10 +32,10 @@ public final class JSONLoggingTransport: MessageTransport {
         try await base.receive()
     }
     
-    public func handle(_ received: URLSessionWebSocketTask.Message) async throws {
+    public func handle(_ received: URLSessionWebSocketTask.Message) throws {
         let json = try JSONSerialization.jsonObject(with: try received.data())
         print("[\(label)] ⬇️:", String(decoding: try JSONSerialization.data(withJSONObject: json, options: []), as: UTF8.self))
-        try await base.handle(received)
+        try base.handle(received)
     }
     
     public func send(_ message: URLSessionWebSocketTask.Message) async throws {

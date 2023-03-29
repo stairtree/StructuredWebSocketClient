@@ -20,11 +20,11 @@ public final class InterceptingTransport: MessageTransport {
     }
     
     let base: MessageTransport
-    let _handle: (_ message: URLSessionWebSocketTask.Message) async throws -> Handling
+    let _handle: (_ message: URLSessionWebSocketTask.Message) throws -> Handling
     
     public init(
         base: MessageTransport,
-        handle: @escaping (_ message: URLSessionWebSocketTask.Message) async throws -> Handling
+        handle: @escaping (_ message: URLSessionWebSocketTask.Message) throws -> Handling
     ) {
         self.base = base
         self._handle = handle
@@ -39,12 +39,12 @@ public final class InterceptingTransport: MessageTransport {
         try await base.receive()
     }
     
-    public func handle(_ received: URLSessionWebSocketTask.Message) async throws {
-        switch try await self._handle(received) {
+    public func handle(_ received: URLSessionWebSocketTask.Message) throws {
+        switch try self._handle(received) {
         case .handled:
             ()
         case .unhandled(let message):
-            try await base.handle(message)
+            try base.handle(message)
         }
     }
     
