@@ -16,7 +16,6 @@ import Foundation
 /// A `MessageTransport` that will try to decode incoming messages based on previously registered
 /// `MessageType`s and call their handler when they arrive.
 public final class JSONMessageRegistryTransport<Message: MessageType>: MessageTransport {
-    private let messageEncoder: JSONEncoder
     private let messageDecoder: JSONDecoder
     internal let messageRegister: MessageRegister = .init()
     
@@ -24,11 +23,9 @@ public final class JSONMessageRegistryTransport<Message: MessageType>: MessageTr
     
     public init(
         base: MessageTransport,
-        messageEncoder: JSONEncoder = .init(),
         messageDecoder: JSONDecoder = .init()
     ) {
         self.base = base
-        self.messageEncoder = messageEncoder
         self.messageDecoder = messageDecoder
         messageDecoder.userInfo[.messageRegister] = self.messageRegister
     }
@@ -51,13 +48,6 @@ public final class JSONMessageRegistryTransport<Message: MessageType>: MessageTr
         } catch {
             try base.handle(received)
         }
-    }
-    
-    /// sends as string
-    public func send<M>(_ message: M) async throws where M: Encodable {
-        let data = try messageEncoder.encode(message)
-        let str = String(decoding: data, as: UTF8.self)
-        try await self.send(.string(str))
     }
     
     public func send(_ message: URLSessionWebSocketTask.Message) async throws {

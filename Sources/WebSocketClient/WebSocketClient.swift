@@ -62,8 +62,6 @@ public final class WebSocketClient {
             while !Task.isCancelled && self.state == .connected {
                 do {
                     let received = try await self.transport.receive()
-                    // If a transport handles the message it will return `nil`.
-                    // The transport MUST call the message's `.handle(_:)` method then.
                     try self.transport.handle(received)
                 } catch {
                     print("\(error)")
