@@ -25,11 +25,14 @@ let package = Package(
             name: "WebSocketClientTestSupport",
             targets: ["WebSocketClientTestSupport"]),
     ],
-    dependencies: [],
+    dependencies: [
+        // Swift logging API
+        .package(url: "https://github.com/apple/swift-log.git", .upToNextMajor(from: "1.5.2")),
+    ],
     targets: [
         .target(
             name: "WebSocketClient",
-            dependencies: []),
+            dependencies: [.product(name: "Logging", package: "swift-log")]),
         .target(
             name: "WebSocketClientTestSupport",
             dependencies: [.target(name: "WebSocketClient")]),

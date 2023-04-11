@@ -12,15 +12,18 @@
 //===----------------------------------------------------------------------===//
 
 import Foundation
+import Logging
 
 /// Assumes messages containing JSON and logs them
 public final class JSONLoggingTransport: MessageTransport {
+    private let logger: Logger
     let label: String
     let base: MessageTransport
     
-    public init(label: String, base: MessageTransport) {
+    public init(label: String, base: MessageTransport, logger: Logger? = nil) {
         self.label = label
         self.base = base
+        self.logger = logger ?? Logger(label: label)
     }
     
     public var transportDelegate: MessageTransportDelegate? {
@@ -34,13 +37,15 @@ public final class JSONLoggingTransport: MessageTransport {
     
     public func handle(_ received: URLSessionWebSocketTask.Message) throws {
         let json = try JSONSerialization.jsonObject(with: try received.data())
-        print("[\(label)] ⬇️:", String(decoding: try JSONSerialization.data(withJSONObject: json, options: []), as: UTF8.self))
+        let data = try JSONSerialization.data(withJSONObject: json, options: [])
+        logger.debug("⬇︎: \(String(decoding: data, as: UTF8.self))")
         try base.handle(received)
     }
     
     public func send(_ message: URLSessionWebSocketTask.Message) async throws {
         let json = try JSONSerialization.jsonObject(with: try message.data())
-        print("[\(label)] ⬆️:", String(decoding: try JSONSerialization.data(withJSONObject: json, options: []), as: UTF8.self))
+        let data = try JSONSerialization.data(withJSONObject: json, options: [])
+        logger.debug("⬆︎: \(String(decoding: data, as: UTF8.self))")
         try await base.send(message)
     }
     

@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 import Foundation
+import Logging
 
 public protocol WebSocketClientDelegate: AnyObject {
     func webSocketClient(didChangeState newState: WebSocketClient.State)
@@ -31,15 +32,18 @@ public final class WebSocketClient {
     public weak var delegate: WebSocketClientDelegate?
     
     public let label: String
+    private let logger: Logger
     internal let transport: MessageTransport
     private var messageTask: Task<Void, Error>?
     
     public init(
         label: String = "",
-        transport: MessageTransport
+        transport: MessageTransport,
+        logger: Logger? = nil
     ) {
         self.label = label
         self.transport = transport
+        self.logger = logger ?? Logger(label: label)
         self.transport.transportDelegate = self
     }
     
@@ -64,7 +68,7 @@ public final class WebSocketClient {
                     let received = try await self.transport.receive()
                     try self.transport.handle(received)
                 } catch {
-                    print("\(error)")
+                    logger.error("\(error)")
                     // FIXME: This should check for the error.
                     //        Also, disconnecting might already cancel the task,
                     //        but not necessarily, as a disconnected socket will
