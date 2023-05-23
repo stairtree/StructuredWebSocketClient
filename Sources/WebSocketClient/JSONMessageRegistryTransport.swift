@@ -39,14 +39,14 @@ public final class JSONMessageRegistryTransport<Message: MessageType>: MessageTr
         try await base.receive()
     }
     
-    public func handle(_ received: URLSessionWebSocketTask.Message) throws {
+    public func handle(_ received: URLSessionWebSocketTask.Message) async throws {
         do {
             // call the handler of the registered message
             try self.parse(received).handle()
             // forward to base
-            try base.handle(received)
+            try await base.handle(received)
         } catch {
-            try base.handle(received)
+            try await base.handle(received)
         }
     }
     

@@ -66,7 +66,7 @@ public final class WebSocketClient {
             while !Task.isCancelled && self.state == .connected {
                 do {
                     let received = try await self.transport.receive()
-                    try self.transport.handle(received)
+                    try await self.transport.handle(received)
                 } catch {
                     logger.error("\(error)")
                     // FIXME: This should check for the error.

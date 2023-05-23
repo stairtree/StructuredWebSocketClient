@@ -35,11 +35,11 @@ public final class JSONLoggingTransport: MessageTransport {
         try await base.receive()
     }
     
-    public func handle(_ received: URLSessionWebSocketTask.Message) throws {
+    public func handle(_ received: URLSessionWebSocketTask.Message) async throws {
         let json = try JSONSerialization.jsonObject(with: try received.data())
         let data = try JSONSerialization.data(withJSONObject: json, options: [])
         logger.debug("⬇︎: \(String(decoding: data, as: UTF8.self))")
-        try base.handle(received)
+        try await base.handle(received)
     }
     
     public func send(_ message: URLSessionWebSocketTask.Message) async throws {
