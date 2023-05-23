@@ -14,22 +14,20 @@
 import Foundation
 import Logging
 
-public protocol WebSocketClientDelegate: AnyObject {
-    func webSocketClient(didChangeState newState: WebSocketClient.State)
-}
-
 public final class WebSocketClient {
     public enum State: Equatable, Hashable {
         case disconnecting, disconnected, connecting, connected
     }
     
-    public var state: State = .disconnected {
+    private var _state: State = .disconnected {
         didSet {
-            guard state != oldValue else { return }
-            delegate?.webSocketClient(didChangeState: state)
+            guard _state != oldValue else { return }
+            stateContinuation.yield(_state)
         }
     }
-    public weak var delegate: WebSocketClientDelegate?
+    
+    private var stateContinuation: AsyncStream<State>.Continuation!
+    public private(set) var stateStream: AsyncStream<State>!
     
     public let label: String
     private let logger: Logger
@@ -45,6 +43,9 @@ public final class WebSocketClient {
         self.transport = transport
         self.logger = logger ?? Logger(label: label)
         self.transport.transportDelegate = self
+        self.stateStream = .init(bufferingPolicy: .unbounded) { continuation in
+            self.stateContinuation = continuation
+        }
     }
     
     deinit {
@@ -52,18 +53,18 @@ public final class WebSocketClient {
     }
     
     public func connect() {
-        state = .connecting
+        _state = .connecting
         transport.resume()
     }
     
     public func disconnect() {
-        state = .disconnecting
+        _state = .disconnecting
         transport.cancel(with: .normalClosure, reason: Data("Closing connection".utf8))
     }
     
     func receiveMessagesWhileConnected() -> Task<Void, Error> {
         Task(priority: .high) {
-            while !Task.isCancelled && self.state == .connected {
+            while !Task.isCancelled && self._state == .connected {
                 do {
                     let received = try await self.transport.receive()
                     try await self.transport.handle(received)
@@ -87,13 +88,13 @@ public final class WebSocketClient {
 
 extension WebSocketClient: MessageTransportDelegate {
     public func didOpenWithProtocol(_ protocol: String?) {
-        state = .connected
+        _state = .connected
         messageTask?.cancel()
         messageTask = receiveMessagesWhileConnected()
     }
     
     public func didCloseWith(closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
-        state = .disconnected
+        _state = .disconnected
         messageTask?.cancel()
     }
 }
