@@ -61,7 +61,6 @@ public final class WebSocketClient {
     public func disconnect(reason: String?) {
         _state = .disconnecting
         transport.cancel(with: .normalClosure, reason: Data(reason?.utf8 ?? "Closing connection".utf8))
-        
     }
     
     func receiveMessagesWhileConnected() -> Task<Void, Error> {
@@ -72,11 +71,7 @@ public final class WebSocketClient {
                     try await self.transport.handle(message)
                 }
             } catch {
-                logger.error("\(error)")
-                // FIXME: This should check for the error.
-                //        Also, disconnecting might already cancel the task,
-                //        but not necessarily, as a disconnected socket will
-                //        not send state changes anymore.
+                logger.error("Error in \(#function): \(error)")
             }
             logger.trace("WebSocketClient stopped receiving messages")
         }
