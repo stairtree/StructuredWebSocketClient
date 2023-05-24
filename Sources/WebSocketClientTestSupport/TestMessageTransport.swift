@@ -16,9 +16,9 @@ import WebSocketClient
 
 public final class TestMessageTransport: MessageTransport {
     public var transportDelegate: MessageTransportDelegate?
-    private var stream: AsyncStream<URLSessionWebSocketTask.Message>!
-    private var continuation: AsyncStream<URLSessionWebSocketTask.Message>.Continuation!
-    private var iterator: AsyncStream<URLSessionWebSocketTask.Message>.Iterator!
+    public var stream: AsyncThrowingStream<URLSessionWebSocketTask.Message, Error>!
+    private var continuation: AsyncThrowingStream<URLSessionWebSocketTask.Message, Error>.Continuation!
+    private var iterator: AsyncThrowingStream<URLSessionWebSocketTask.Message, Error>.Iterator!
     
     public init(initialResponses: [URLSessionWebSocketTask.Message] = []) {
         self.stream = .init { self.continuation = $0 }
@@ -30,10 +30,12 @@ public final class TestMessageTransport: MessageTransport {
         self.continuation.yield(response)
     }
     
-    public func receive() async throws -> URLSessionWebSocketTask.Message {
-        guard let response = await self.iterator.next() else { throw CancellationError() }
-        return response
-    }
+    public var messages: WebSocketStream { stream }
+    
+//    public func receive() async throws -> URLSessionWebSocketTask.Message {
+//        guard let response = try await self.iterator.next() else { throw CancellationError() }
+//        return response
+//    }
     
     public func send(_ message: URLSessionWebSocketTask.Message) async throws {
         // TODO: allow assertions on sent/encoded messages

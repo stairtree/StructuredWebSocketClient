@@ -13,9 +13,13 @@
 
 import Foundation
 
+public typealias WebSocketStream = AsyncThrowingStream<URLSessionWebSocketTask.Message, Error>
+
 public protocol MessageTransport {
     var transportDelegate: MessageTransportDelegate? { get nonmutating set }
-    func receive() async throws -> URLSessionWebSocketTask.Message
+    /// The stream of messages as they arrive.
+    /// The stream must be closed once the transport is cancelled, or closed otherwise.
+    var messages: WebSocketStream { get }
     func send(_ message: URLSessionWebSocketTask.Message) async throws
     func handle(_ received: URLSessionWebSocketTask.Message) async throws
     func cancel(with closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?)
@@ -58,6 +62,14 @@ extension WebSocketTaskDelegateHandler: URLSessionWebSocketDelegate {
     }
     
     public func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        didCloseWith(closeCode: .abnormalClosure, reason: error.map { Data("\($0)".utf8) })
+        // Timeout
+        if let nsError = error as? NSError, nsError.code == 60 {
+            onClose(
+                .abnormalClosure,
+                nsError.localizedFailureReason.map { Data($0.utf8) } ?? Data(nsError.localizedDescription.utf8)
+            )
+        }
+        // We don't want to call onClose again here, as we'd call it twice then.
+        // TODO: Figure out when we'd get this callback but not `WebSocketTaskDelegateHandler.urlSession(_:webSocketTask:didCloseWith:reason:)`
     }
 }

@@ -35,9 +35,7 @@ public final class InterceptingTransport: MessageTransport {
         set { base.transportDelegate = newValue }
     }
     
-    public func receive() async throws -> URLSessionWebSocketTask.Message {
-        try await base.receive()
-    }
+    public var messages: WebSocketStream { base.messages }
     
     public func handle(_ received: URLSessionWebSocketTask.Message) async throws {
         switch try await self._handle(received) {

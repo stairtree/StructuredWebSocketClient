@@ -49,6 +49,7 @@ public final class WebSocketClient {
     }
     
     deinit {
+        self.logger.trace("♻️ Deinit of WebSocketClient")
         transport.cancel(with: .goingAway, reason: nil)
     }
     
@@ -57,25 +58,27 @@ public final class WebSocketClient {
         transport.resume()
     }
     
-    public func disconnect() {
+    public func disconnect(reason: String?) {
         _state = .disconnecting
-        transport.cancel(with: .normalClosure, reason: Data("Closing connection".utf8))
+        transport.cancel(with: .normalClosure, reason: Data(reason?.utf8 ?? "Closing connection".utf8))
+        
     }
     
     func receiveMessagesWhileConnected() -> Task<Void, Error> {
         Task(priority: .high) {
-            while !Task.isCancelled && self._state == .connected {
-                do {
-                    let received = try await self.transport.receive()
-                    try await self.transport.handle(received)
-                } catch {
-                    logger.error("\(error)")
-                    // FIXME: This should check for the error.
-                    //        Also, disconnecting might already cancel the task,
-                    //        but not necessarily, as a disconnected socket will
-                    //        not send state changes anymore.
+            do {
+                // The messages stream from the transport will finish the stream on close
+                for try await message in self.transport.messages {
+                    try await self.transport.handle(message)
                 }
+            } catch {
+                logger.error("\(error)")
+                // FIXME: This should check for the error.
+                //        Also, disconnecting might already cancel the task,
+                //        but not necessarily, as a disconnected socket will
+                //        not send state changes anymore.
             }
+            logger.trace("WebSocketClient stopped receiving messages")
         }
     }
     
@@ -94,8 +97,14 @@ extension WebSocketClient: MessageTransportDelegate {
     }
     
     public func didCloseWith(closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
+        guard _state != .disconnected else {
+            logger.warning("WebSocketClient already disconnected"); return
+        }
         _state = .disconnected
-        messageTask?.cancel()
+        logger.trace("""
+            WebSocketClient closed connection with code \(closeCode.rawValue), \
+            reason: \(reason.map { String(decoding: $0, as: UTF8.self) } ?? "nil")
+            """)
     }
 }
 
