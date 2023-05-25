@@ -19,11 +19,11 @@ let package = Package(
     platforms: [.iOS(.v15), .macOS(.v12), .watchOS(.v8), .tvOS(.v15)],
     products: [
         .library(
-            name: "WebSocketClient",
-            targets: ["WebSocketClient"]),
+            name: "StructuredWebSocketClient",
+            targets: ["StructuredWebSocketClient"]),
         .library(
-            name: "WebSocketClientTestSupport",
-            targets: ["WebSocketClientTestSupport"]),
+            name: "StructuredWebSocketClientTestSupport",
+            targets: ["StructuredWebSocketClientTestSupport"]),
     ],
     dependencies: [
         // Swift logging API
@@ -31,16 +31,16 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "WebSocketClient",
+            name: "StructuredWebSocketClient",
             dependencies: [.product(name: "Logging", package: "swift-log")]),
         .target(
-            name: "WebSocketClientTestSupport",
-            dependencies: [.target(name: "WebSocketClient")]),
+            name: "StructuredWebSocketClientTestSupport",
+            dependencies: [.target(name: "StructuredWebSocketClient")]),
         .testTarget(
-            name: "WebSocketClientTests",
+            name: "StructuredWebSocketClientTests",
             dependencies: [
-                .target(name: "WebSocketClient"),
-                .target(name: "WebSocketClientTestSupport"),
+                .target(name: "StructuredWebSocketClient"),
+                .target(name: "StructuredWebSocketClientTestSupport"),
             ]),
     ]
 )

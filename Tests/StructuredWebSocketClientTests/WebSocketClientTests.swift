@@ -12,7 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 import XCTest
-@testable import WebSocketClient
+@testable import StructuredWebSocketClient
 
 final class WebSocketClientTests: XCTestCase {
 

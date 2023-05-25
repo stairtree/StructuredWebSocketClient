@@ -12,7 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 import Foundation
-import WebSocketClient
+import StructuredWebSocketClient
 
 public final class TestMessageTransport: MessageTransport {
     public var transportDelegate: MessageTransportDelegate?
