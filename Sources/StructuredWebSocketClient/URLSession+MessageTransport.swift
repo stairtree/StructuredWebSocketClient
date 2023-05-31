@@ -19,7 +19,7 @@ public final class URLSessionWebSocketTransport: MessageTransport {
     private let task: URLSessionWebSocketTask
     private var delegateHandler: WebSocketTaskDelegateHandler!
     // set by the consumer
-    public var transportDelegate: MessageTransportDelegate?
+    public weak var transportDelegate: MessageTransportDelegate?
     
     public init(request: URLRequest, urlSession: URLSession = .shared) {
         self.task = urlSession.webSocketTask(with: request)
