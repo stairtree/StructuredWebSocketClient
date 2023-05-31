@@ -49,8 +49,8 @@ public final class WebSocketClient {
     }
     
     deinit {
+        stateContinuation.finish()
         self.logger.trace("♻️ Deinit of WebSocketClient")
-        transport.cancel(with: .goingAway, reason: nil)
     }
     
     public func connect() {
