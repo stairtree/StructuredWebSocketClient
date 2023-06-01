@@ -36,7 +36,6 @@ public protocol MessageTransportDelegate: AnyObject {
 
 // MARK: - WebSocketTaskDelegate
 
-@objcMembers
 public final class WebSocketTaskDelegateHandler: NSObject, MessageTransportDelegate {
     let onOpen: (_ `protocol`: String?) -> Void
     let onClose: (_ closeCode: URLSessionWebSocketTask.CloseCode, _ reason: Data?) -> Void
