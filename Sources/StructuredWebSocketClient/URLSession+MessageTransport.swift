@@ -12,6 +12,9 @@
 //===----------------------------------------------------------------------===//
 
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 public final class URLSessionWebSocketTransport: MessageTransport {
     private var socketStream: SocketStream!

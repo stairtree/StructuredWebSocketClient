@@ -12,6 +12,9 @@
 //===----------------------------------------------------------------------===//
 
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 /// A `MessageTransport` that will try to decode incoming messages based on previously registered
 /// `MessageType`s and call their handler when they arrive.

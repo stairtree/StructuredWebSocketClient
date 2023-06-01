@@ -13,6 +13,9 @@
 
 import Foundation
 import Logging
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 /// Assumes messages containing JSON and logs them
 public final class JSONLoggingTransport: MessageTransport {

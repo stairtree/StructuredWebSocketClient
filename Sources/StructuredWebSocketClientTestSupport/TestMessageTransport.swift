@@ -13,6 +13,9 @@
 
 import Foundation
 import StructuredWebSocketClient
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 public final class TestMessageTransport: MessageTransport {
     public var transportDelegate: MessageTransportDelegate?

@@ -13,6 +13,9 @@
 
 import Foundation
 import Logging
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 public final class WebSocketClient {
     public enum State: Equatable, Hashable {
