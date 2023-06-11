@@ -31,8 +31,9 @@ public final class URLSessionWebSocketTransport: MessageTransport {
         } onClose: { [weak self] closeCode, reason in
             self?.transportDelegate?.didCloseWith(closeCode: closeCode, reason: reason)
         }
+        #if canImport(Darwin)
         self.task.delegate = self.delegateHandler
-        
+        #endif
         socketStream = SocketStream(task: task)
     }
     
