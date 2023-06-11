@@ -75,7 +75,14 @@ private final class SocketStream: AsyncSequence {
         self.task = task
         stream = WebSocketStream { continuation in
             self.continuation = continuation
-            waitForNextValue()
+            Task {
+                do {
+                    let result = try await task.receive()
+                    continuation.yield(result)
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
         }
         task.resume()
     }
@@ -86,22 +93,22 @@ private final class SocketStream: AsyncSequence {
     // forever. This is most likely to the fact that the async version is not
     // properly handling cancellation, but is just a callback based method where
     // Swift is automatically providing an async variant.
-    private func waitForNextValue() {
-        guard task.closeCode == .invalid else {
-            continuation?.finish()
-            return
-        }
-        task.receive(completionHandler: { [weak self] result in
-            guard let continuation = self?.continuation else { return }
-            do {
-                let message = try result.get()
-                continuation.yield(message)
-                self?.waitForNextValue()
-            } catch {
-                continuation.finish(throwing: error)
-            }
-        })
-    }
+//    private func waitForNextValue() {
+//        guard task.closeCode == .invalid else {
+//            continuation?.finish()
+//            return
+//        }
+//        task.receive(completionHandler: { [weak self] result in
+//            guard let continuation = self?.continuation else { return }
+//            do {
+//                let message = try result.get()
+//                continuation.yield(message)
+//                self?.waitForNextValue()
+//            } catch {
+//                continuation.finish(throwing: error)
+//            }
+//        })
+//    }
 
     deinit {
         continuation?.finish()
