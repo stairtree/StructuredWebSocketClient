@@ -91,8 +91,7 @@ private final class SocketStream: AsyncSequence {
             continuation?.finish()
             return
         }
-        
-        task.receive { [weak self] result in
+        task.receive(completionHandler: { [weak self] result in
             guard let continuation = self?.continuation else { return }
             do {
                 let message = try result.get()
@@ -101,7 +100,7 @@ private final class SocketStream: AsyncSequence {
             } catch {
                 continuation.finish(throwing: error)
             }
-        }
+        })
     }
 
     deinit {
