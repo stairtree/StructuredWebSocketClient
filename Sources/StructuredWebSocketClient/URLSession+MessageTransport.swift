@@ -31,9 +31,9 @@ public final class URLSessionWebSocketTransport: MessageTransport {
         } onClose: { [weak self] closeCode, reason in
             self?.transportDelegate?.didCloseWith(closeCode: closeCode, reason: reason)
         }
-        #if canImport(Darwin)
+#if os(iOS) || os(macOS)
         self.task.delegate = self.delegateHandler
-        #endif
+#endif
         socketStream = SocketStream(task: task)
     }
     
@@ -67,7 +67,11 @@ private final class SocketStream: AsyncSequence {
     typealias Element = URLSessionWebSocketTask.Message
 
     private var continuation: WebSocketStream.Continuation?
+#if os(iOS) || os(macOS)
     private unowned var task: URLSessionWebSocketTask
+#else
+    private var task: URLSessionWebSocketTask
+#endif
     
     fileprivate var stream: WebSocketStream!
     
