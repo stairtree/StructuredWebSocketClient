@@ -75,11 +75,34 @@ private final class SocketStream: AsyncSequence {
         self.task = task
         stream = WebSocketStream { continuation in
             self.continuation = continuation
+            #if os(iOS) || os(macOS)
             waitForNextValue()
+            #else
+            Task {
+                guard task.closeCode == .invalid else {
+                    continuation.finish()
+                    return
+                }
+                
+                var isAlive = true
+                
+                while isAlive && task.closeCode == .invalid {
+                    do {
+                        let value = try await task.receive()
+                        continuation.yield(value)
+                    } catch {
+                        continuation.finish(throwing: error)
+                        isAlive = false
+                    }
+                }
+                continuation.finish()
+            }
+            #endif
         }
         task.resume()
     }
     
+#if os(iOS) || os(macOS)
     // Using the callback based version gets around the Task not ever getting
     // released if the user cancels the websocket connection.
     // `try await task.receive()` doesn't throw when cancelled, and waits
@@ -103,6 +126,7 @@ private final class SocketStream: AsyncSequence {
             }
         }
     }
+#endif
 
     deinit {
         continuation?.finish()
