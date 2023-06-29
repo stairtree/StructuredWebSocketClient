@@ -52,8 +52,11 @@ public final class WebSocketClient {
     }
     
     deinit {
-        stateContinuation.finish()
         self.logger.trace("♻️ Deinit of WebSocketClient")
+    }
+    
+    public func finalize() {
+        stateContinuation.finish()
     }
     
     public func connect() {
