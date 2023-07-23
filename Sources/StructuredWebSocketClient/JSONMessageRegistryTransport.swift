@@ -12,47 +12,41 @@
 //===----------------------------------------------------------------------===//
 
 import Foundation
+import AsyncAlgorithms
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
 
 /// A `MessageTransport` that will try to decode incoming messages based on previously registered
 /// `MessageType`s and call their handler when they arrive.
-public final class JSONMessageRegistryTransport<Message: MessageType>: MessageTransport {
+public final class JSONMessageRegistryTransport<Message: MessageType>: WebSocketMessageMiddleware {
     private let messageDecoder: JSONDecoder
     internal let messageRegister: MessageRegister = .init()
     
-    let base: MessageTransport
+    public let next: (any WebSocketMessageMiddleware)?
     
     public init(
-        base: MessageTransport,
+        next: any WebSocketMessageMiddleware,
         messageDecoder: JSONDecoder = .init()
     ) {
-        self.base = base
+        self.next = next
         self.messageDecoder = messageDecoder
         messageDecoder.userInfo[.messageRegister] = self.messageRegister
     }
     
-    public var transportDelegate: MessageTransportDelegate? {
-        get { base.transportDelegate }
-        set { base.transportDelegate = newValue }
-    }
-    
-    public var messages: WebSocketStream { base.messages }
-    
-    public func handle(_ received: URLSessionWebSocketTask.Message) async throws {
+    public func handle(_ received: URLSessionWebSocketTask.Message) async throws -> URLSessionWebSocketTask.Message? {
         do {
             // call the handler of the registered message
             try self.parse(received).handle()
             // forward to base
-            try await base.handle(received)
+            return try await next?.handle(received)
         } catch {
-            try await base.handle(received)
+            return try await next?.handle(received)
         }
     }
     
     public func send(_ message: URLSessionWebSocketTask.Message) async throws {
-        try await base.send(message)
+        try await next?.send(message)
     }
     
     // Default handling for JSON messages. Other transports can elect to call this
@@ -67,14 +61,6 @@ public final class JSONMessageRegistryTransport<Message: MessageType>: MessageTr
             throw WebSocketError.unknownMessageFormat
         }
         return message
-    }
-    
-    public func cancel(with closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
-        base.cancel(with: closeCode, reason: reason)
-    }
-    
-    public func resume() {
-        base.resume()
     }
 }
 

@@ -12,131 +12,81 @@
 //===----------------------------------------------------------------------===//
 
 import Foundation
+import Logging
+import AsyncAlgorithms
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
 
 public final class URLSessionWebSocketTransport: MessageTransport {
-    private var socketStream: SocketStream!
-    
+    private let logger: Logger = .init(label: "URLSessionWebSocketTransport")
     private let task: URLSessionWebSocketTask
     private var delegateHandler: WebSocketTaskDelegateHandler!
-    // set by the consumer
-    public weak var transportDelegate: MessageTransportDelegate?
+    public let events: AsyncThrowingChannel<WebSocketClient.WebSocketEvents, Error> = .init()
     
     public init(request: URLRequest, urlSession: URLSession = .shared) {
         self.task = urlSession.webSocketTask(with: request)
-        self.delegateHandler = WebSocketTaskDelegateHandler { [weak self] `protocol` in
-            self?.transportDelegate?.didOpenWithProtocol(`protocol`)
-        } onClose: { [weak self] closeCode, reason in
-            self?.transportDelegate?.didCloseWith(closeCode: closeCode, reason: reason)
-        }
+        self.delegateHandler = WebSocketTaskDelegateHandler(
+            onOpen: { [weak self, messages, logger] `protocol` in
+                logger.info("\(#function): \(`protocol` ?? "nil")")
+                await self?.events.send(.state(.connected))
+                // Guarantee that we only start reading messages after we have sent
+                // the connected event. If no one is consuming events yet, we will
+                // suspend until someone does.
+                self?.readNextMessage() // we should be able to do this in the initializer, as nobody consumes values anyway
+                do {
+                    for try await message in messages {
+                        await self?.events.send(.message(message))
+                    }
+                } catch {
+                    logger.error("WebSocketClient event error: \(error)")
+                    // await events.send(.error(error))
+                }
+                logger.info("Transport message stream finished")
+                // self.events.finish()
+            },
+            onClose: { [weak self, logger] closeCode, reason in
+                logger.trace("""
+                    WebSocketClient closed connection with code \(closeCode.rawValue), \
+                    reason: \(reason.map { String(decoding: $0, as: UTF8.self) } ?? "nil")
+                    """)
+                await self?.events.send(.state(.disconnected))
+                self?.events.finish()
+            })
         #if canImport(Darwin)
         self.task.delegate = self.delegateHandler
         #endif
-        socketStream = SocketStream(task: task)
     }
-    
-    public var messages: WebSocketStream { socketStream.stream }
     
     public func send(_ message: URLSessionWebSocketTask.Message) async throws {
         try await task.send(message)
     }
     
-    public func handle(_ received: URLSessionWebSocketTask.Message) throws {
-        // This is supposed to be the final transport in the chain, so no more
-        // delegation to another handler.
-    }
-
     public func cancel(with closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
         task.cancel(with: closeCode, reason: reason)
-        socketStream.cancel()
     }
     
     public func resume() {
         task.resume()
     }
-}
-
-/// A wrapper for a `AsyncThrowingStream<URLSessionWebSocketTask.Message, Error>` to
-/// ensure cancelling the task also stops waiting for messages.
-///
-/// See: https://www.donnywals.com/iterating-over-web-socket-messages-with-async-await-in-swift/
-private final class SocketStream: AsyncSequence {
-    typealias AsyncIterator = WebSocketStream.Iterator
-    typealias Element = URLSessionWebSocketTask.Message
-
-    private var continuation: WebSocketStream.Continuation?
-    private unowned var task: URLSessionWebSocketTask
     
-    fileprivate var stream: WebSocketStream!
-    
-    init(task: URLSessionWebSocketTask) {
-        self.task = task
-        stream = WebSocketStream { continuation in
-            self.continuation = continuation
-            #if os(iOS) || os(macOS)
-            waitForNextValue()
-            #else
-            Task {
-                guard task.closeCode == .invalid else {
-                    continuation.finish()
-                    return
-                }
-                
-                var isAlive = true
-                
-                while isAlive && task.closeCode == .invalid {
-                    do {
-                        let value = try await task.receive()
-                        continuation.yield(value)
-                    } catch {
-                        continuation.finish(throwing: error)
-                        isAlive = false
-                    }
-                }
-                continuation.finish()
-            }
-            #endif
-        }
-        task.resume()
-    }
-    
-#if os(iOS) || os(macOS)
-    // Using the callback based version gets around the Task not ever getting
-    // released if the user cancels the websocket connection.
-    // `try await task.receive()` doesn't throw when cancelled, and waits
-    // forever. This is most likely to the fact that the async version is not
-    // properly handling cancellation, but is just a callback based method where
-    // Swift is automatically providing an async variant.
-    private func waitForNextValue() {
+    private var messages: AsyncThrowingChannel<URLSessionWebSocketTask.Message, Error> = .init()
+    private func readNextMessage() {
         guard task.closeCode == .invalid else {
-            continuation?.finish()
+            messages.finish()
             return
         }
         
         task.receive { [weak self] result in
-            guard let continuation = self?.continuation else { return }
-            do {
-                let message = try result.get()
-                continuation.yield(message)
-                self?.waitForNextValue()
-            } catch {
-                continuation.finish(throwing: error)
+            Task { [weak self] in
+                do {
+                    let message = try result.get()
+                    await self?.messages.send(message)
+                    self?.readNextMessage()
+                } catch {
+                    self?.messages.fail(error)
+                }
             }
         }
-    }
-#endif
-
-    deinit {
-        continuation?.finish()
-    }
-
-    func makeAsyncIterator() -> AsyncIterator {
-        stream.makeAsyncIterator()
-    }
-
-    func cancel() {
-        continuation?.finish()
     }
 }

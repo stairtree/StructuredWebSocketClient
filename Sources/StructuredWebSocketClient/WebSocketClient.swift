@@ -13,6 +13,7 @@
 
 import Foundation
 import Logging
+import AsyncAlgorithms
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
@@ -25,43 +26,69 @@ public final class WebSocketClient {
     private var _state: State = .disconnected {
         didSet {
             guard _state != oldValue else { return }
-            stateContinuation.yield(_state)
+//            stateContinuation.yield(_state)
         }
     }
     
-    private var stateContinuation: AsyncStream<State>.Continuation!
-    public private(set) var stateStream: AsyncStream<State>!
+    public enum WebSocketEvents {
+        case state(State)
+        case message(URLSessionWebSocketTask.Message)
+    }
+    
+    public let events: AsyncChannel<WebSocketEvents>
     
     public let label: String
     private let logger: Logger
     internal let transport: MessageTransport
-    private var messageTask: Task<Void, Error>?
+    internal let middleware: WebSocketMessageMiddleware?
     
     public init(
         label: String = "",
+        middleware: WebSocketMessageMiddleware?,
         transport: MessageTransport,
         logger: Logger? = nil
     ) {
         self.label = label
         self.transport = transport
+        self.middleware = middleware
         self.logger = logger ?? Logger(label: label)
-        self.transport.transportDelegate = self
-        self.stateStream = .init(bufferingPolicy: .unbounded) { continuation in
-            self.stateContinuation = continuation
-        }
+        self.events = .init()
     }
     
     deinit {
         self.logger.trace("♻️ Deinit of WebSocketClient")
     }
     
-    public func finalize() {
-        stateContinuation.finish()
-    }
-    
-    public func connect() {
+    public func connect() async {
         _state = .connecting
         transport.resume()
+        do {
+            try await withThrowingTaskGroup(of: Void.self) { group in
+                group.addTask {
+                    for try await transportEvent in self.transport.events {
+                        switch transportEvent {
+                        case let .state(s):
+                            self._state = s
+                            await self.events.send(.state(s))
+                        case let .message(m):
+                            // pipe message through middleware
+                            if let middleware = self.middleware {
+                                if let handled = try await middleware.handle(m) {
+                                    await self.events.send(.message(handled))
+                                }
+                            } else {
+                                await self.events.send(.message(m))
+                            }
+                        }
+                    }
+                    self.logger.info("Transport events ended")
+                    self.events.finish()
+                }
+                try await group.next()
+            }
+        } catch {
+            logger.error("> \(error)")
+        }
     }
     
     public func disconnect(reason: String?) {
@@ -69,43 +96,8 @@ public final class WebSocketClient {
         transport.cancel(with: .normalClosure, reason: Data(reason?.utf8 ?? "Closing connection".utf8))
     }
     
-    func receiveMessagesWhileConnected() -> Task<Void, Error> {
-        Task(priority: .high) {
-            do {
-                // The messages stream from the transport will finish the stream on close
-                for try await message in self.transport.messages {
-                    try await self.transport.handle(message)
-                }
-            } catch {
-                logger.error("Error in \(#function): \(error)")
-            }
-            logger.trace("WebSocketClient stopped receiving messages")
-        }
-    }
-    
-    public func send(_ message: URLSessionWebSocketTask.Message) async throws {
+    public func sendMessage(_ message: URLSessionWebSocketTask.Message) async throws {
         try await transport.send(message)
-    }
-}
-
-// MARK: - MessageTransportDelegate
-
-extension WebSocketClient: MessageTransportDelegate {
-    public func didOpenWithProtocol(_ protocol: String?) {
-        _state = .connected
-        messageTask?.cancel()
-        messageTask = receiveMessagesWhileConnected()
-    }
-    
-    public func didCloseWith(closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
-        guard _state != .disconnected else {
-            logger.warning("WebSocketClient already disconnected"); return
-        }
-        _state = .disconnected
-        logger.trace("""
-            WebSocketClient closed connection with code \(closeCode.rawValue), \
-            reason: \(reason.map { String(decoding: $0, as: UTF8.self) } ?? "nil")
-            """)
     }
 }
 

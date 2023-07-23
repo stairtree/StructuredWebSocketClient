@@ -28,11 +28,16 @@ let package = Package(
     dependencies: [
         // Swift logging API
         .package(url: "https://github.com/apple/swift-log.git", .upToNextMajor(from: "1.5.2")),
+        // AsyncChannel with backpressure
+        .package(url: "https://github.com/apple/swift-async-algorithms", branch: "main"),
     ],
     targets: [
         .target(
             name: "StructuredWebSocketClient",
-            dependencies: [.product(name: "Logging", package: "swift-log")]),
+            dependencies: [
+                .product(name: "Logging", package: "swift-log"),
+                .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
+            ]),
         .target(
             name: "StructuredWebSocketClientTestSupport",
             dependencies: [.target(name: "StructuredWebSocketClient")]),

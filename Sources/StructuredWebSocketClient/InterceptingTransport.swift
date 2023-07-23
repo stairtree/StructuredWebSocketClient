@@ -12,52 +12,38 @@
 //===----------------------------------------------------------------------===//
 
 import Foundation
+import AsyncAlgorithms
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
 
-public final class InterceptingTransport: MessageTransport {
+public final class InterceptingTransport: WebSocketMessageMiddleware {
     
     public enum Handling {
         case handled, unhandled(URLSessionWebSocketTask.Message)
     }
     
-    let base: MessageTransport
+    public let next: WebSocketMessageMiddleware?
     let _handle: (_ message: URLSessionWebSocketTask.Message) async throws -> Handling
     
     public init(
-        base: MessageTransport,
+        next: WebSocketMessageMiddleware?,
         handle: @escaping (_ message: URLSessionWebSocketTask.Message) async throws -> Handling
     ) {
-        self.base = base
+        self.next = next
         self._handle = handle
     }
     
-    public var transportDelegate: MessageTransportDelegate? {
-        get { base.transportDelegate }
-        set { base.transportDelegate = newValue }
-    }
-    
-    public var messages: WebSocketStream { base.messages }
-    
-    public func handle(_ received: URLSessionWebSocketTask.Message) async throws {
+    public func handle(_ received: URLSessionWebSocketTask.Message) async throws -> URLSessionWebSocketTask.Message? {
         switch try await self._handle(received) {
         case .handled:
-            ()
+            return nil
         case .unhandled(let message):
-            try await base.handle(message)
+            return try await next?.handle(message)
         }
     }
     
     public func send(_ message: URLSessionWebSocketTask.Message) async throws {
-        try await base.send(message)
-    }
-    
-    public func cancel(with closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
-        base.cancel(with: closeCode, reason: reason)
-    }
-    
-    public func resume() {
-        base.resume()
+        try await next?.send(message)
     }
 }

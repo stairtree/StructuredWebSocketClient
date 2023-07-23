@@ -12,48 +12,63 @@
 //===----------------------------------------------------------------------===//
 
 import Foundation
+import AsyncAlgorithms
 import StructuredWebSocketClient
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
 
 public final class TestMessageTransport: MessageTransport {
-    public var transportDelegate: MessageTransportDelegate?
-    public var stream: AsyncThrowingStream<URLSessionWebSocketTask.Message, Error>!
-    private var continuation: AsyncThrowingStream<URLSessionWebSocketTask.Message, Error>.Continuation!
-    private var iterator: AsyncThrowingStream<URLSessionWebSocketTask.Message, Error>.Iterator!
+    private var connectedContinuation: CheckedContinuation<Void, Never>?
     
-    public init(initialResponses: [URLSessionWebSocketTask.Message] = []) {
-        self.stream = .init { self.continuation = $0 }
-        self.iterator = self.stream.makeAsyncIterator()
-        for response in initialResponses { self.continuation.yield(response) }
+    public init() {}
+    
+    // will wait until state is connected
+    public func push(_ event: WebSocketClient.WebSocketEvents) async {
+        print("awaiting connection")
+        await withCheckedContinuation { continuation in
+            if connectedContinuation == nil {
+                connectedContinuation = continuation
+            }
+        }
+        await self.events.send(event)
     }
     
-    public func push(_ response: URLSessionWebSocketTask.Message) async {
-        self.continuation.yield(response)
-    }
-    
-    public var messages: WebSocketStream { stream }
-    
-//    public func receive() async throws -> URLSessionWebSocketTask.Message {
-//        guard let response = try await self.iterator.next() else { throw CancellationError() }
-//        return response
-//    }
+    public var events: AsyncThrowingChannel<WebSocketClient.WebSocketEvents, Error> = .init()
     
     public func send(_ message: URLSessionWebSocketTask.Message) async throws {
         // TODO: allow assertions on sent/encoded messages
         // print("Sending: \(String(decoding: try message.data(), as: UTF8.self))")
     }
     
-    public func handle(_ received: URLSessionWebSocketTask.Message) throws {
-        //
-    }
-    
     public func cancel(with closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
-        continuation.finish()
+        Task {
+            await events.send(.state(.disconnected))
+            self.events.finish()
+        }
     }
     
     public func resume() {
-        //
+        Task {
+            await events.send(.state(.connected))
+            if let connectedContinuation {
+                print("resuming with connection")
+                connectedContinuation.resume()
+            }
+        }
+    }
+}
+
+public final class NoOpMiddleWare: WebSocketMessageMiddleware {
+    public var next: (StructuredWebSocketClient.WebSocketMessageMiddleware)? { nil }
+    
+    public init() {}
+    
+    public func send(_ message: URLSessionWebSocketTask.Message) async throws {
+        try await next?.send(message)
+    }
+    
+    public func handle(_ received: URLSessionWebSocketTask.Message) async throws -> URLSessionWebSocketTask.Message? {
+        return received
     }
 }
