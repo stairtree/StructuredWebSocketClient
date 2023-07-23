@@ -18,23 +18,70 @@ import StructuredWebSocketClient
 import FoundationNetworking
 #endif
 
-public final class TestMessageTransport: MessageTransport {
-    private var connectedContinuation: CheckedContinuation<Void, Never>?
+actor Awaiter {
+    enum State {
+        case waiting(waiters: [CheckedContinuation<Void, Never>])
+        case ready
+    }
+    private var state: State = .waiting(waiters: [])
     
-    public init() {}
+    private func addToWaiters() async {
+        switch state {
+        case .ready:
+            return
+        case var .waiting(waiters: waiters):
+            await withCheckedContinuation { cont in
+                waiters.append(cont)
+                state = .waiting(waiters: waiters)
+            }
+        }
+    }
+    
+    func trigger() {
+        guard case .waiting(waiters: var waiters) = self.state else {
+            fatalError("Exiting in invalid state")
+        }
+        
+        if waiters.isEmpty {
+            self.state = .ready
+            return
+        }
+
+        while !waiters.isEmpty {
+            let nextWaiter = waiters.removeFirst()
+            self.state = .waiting(waiters: waiters)
+            nextWaiter.resume()
+        }
+        state = .ready
+    }
+    
+    func awaitUntilMet(_ block: @escaping () async throws -> Void) async rethrows {
+        await self.addToWaiters()
+        try await block()
+    }
+}
+
+public final class TestMessageTransport: MessageTransport {
+    public var events: AsyncThrowingChannel<WebSocketClient.WebSocketEvents, Error> = .init()
+    private var awaiter: Awaiter = .init()
+    
+    public init(initialMessages: [URLSessionWebSocketTask.Message] = []) {
+        Task {
+            for message in initialMessages {
+                await self.push(.message(message))
+            }
+            // here we should trigger the awaiter to enter the escond waiting phase
+        }
+    }
     
     // will wait until state is connected
     public func push(_ event: WebSocketClient.WebSocketEvents) async {
         print("awaiting connection")
-        await withCheckedContinuation { continuation in
-            if connectedContinuation == nil {
-                connectedContinuation = continuation
-            }
+        await awaiter.awaitUntilMet {
+            print("Sending event")
+            await self.events.send(event)
         }
-        await self.events.send(event)
     }
-    
-    public var events: AsyncThrowingChannel<WebSocketClient.WebSocketEvents, Error> = .init()
     
     public func send(_ message: URLSessionWebSocketTask.Message) async throws {
         // TODO: allow assertions on sent/encoded messages
@@ -51,10 +98,8 @@ public final class TestMessageTransport: MessageTransport {
     public func resume() {
         Task {
             await events.send(.state(.connected))
-            if let connectedContinuation {
-                print("resuming with connection")
-                connectedContinuation.resume()
-            }
+            print("condition is met")
+            await awaiter.trigger()
         }
     }
 }

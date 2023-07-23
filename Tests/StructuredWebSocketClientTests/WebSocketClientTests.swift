@@ -23,7 +23,10 @@ final class WebSocketClientTests: XCTestCase {
             handler.logLevel = .trace
             return handler
         }
-        let tt = TestMessageTransport()
+        let tt = TestMessageTransport(initialMessages: [
+            // it's not guaranteed that there aren't messages put inbetween
+            .string("initial 1 \(Date())"), .string("initial 2 \(Date())")
+        ])
         print("Creating client")
         let client = WebSocketClient(
             label: "Test",
@@ -39,8 +42,9 @@ final class WebSocketClientTests: XCTestCase {
             }
             group.addTask {
                 print("pushing message")
-                await tt.push(.message(.string("Hoy")))
+                await tt.push(.message(.string("Hoy \(Date())")))
                 try await Task.sleep(nanoseconds: 1 * NSEC_PER_SEC)
+                await tt.push(.message(.string("Hoy again \(Date())")))
                 tt.cancel(with: .goingAway, reason: nil)
             }
             group.addTask {
