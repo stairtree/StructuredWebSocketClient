@@ -30,7 +30,8 @@ final class WebSocketClientTests: XCTestCase {
         print("Creating client")
         let client = WebSocketClient(
             label: "Test",
-            middleware: NoOpMiddleWare(),
+            inboundMiddleware: NoOpMiddleWare(),
+            outboundMiddleware: NoOpMiddleWare(),
             transport: tt,
             logger: Logger(label: "Test")
         )

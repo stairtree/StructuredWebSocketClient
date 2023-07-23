@@ -32,16 +32,22 @@ public protocol MessageTransportDelegate: AnyObject {
     func didCloseWith(closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?)
 }
 
-public protocol WebSocketMessageMiddleware {
+public protocol WebSocketMessageInboundMiddleware {
     /// The next middleware in the chain
     ///
     /// - TODO: The order should be reversed for outgoing middleware
-    var next: (any WebSocketMessageMiddleware)? { get }
-    /// Emit an outbound message
-    func send(_ message: URLSessionWebSocketTask.Message) async throws
+    var nextIn: WebSocketMessageInboundMiddleware? { get }
     /// handle an incoming message
     func handle(_ received: URLSessionWebSocketTask.Message) async throws -> URLSessionWebSocketTask.Message?
 }
+
+public protocol WebSocketMessageOutboundMiddleware {
+    /// The next middleware on the way out
+    var nextOut: WebSocketMessageOutboundMiddleware? { get }
+    /// Emit an outbound message
+    func send(_ message: URLSessionWebSocketTask.Message) async throws -> URLSessionWebSocketTask.Message?
+}
+
 
 // MARK: - WebSocketTaskDelegate
 

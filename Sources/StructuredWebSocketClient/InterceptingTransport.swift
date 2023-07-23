@@ -17,20 +17,20 @@ import AsyncAlgorithms
 import FoundationNetworking
 #endif
 
-public final class InterceptingTransport: WebSocketMessageMiddleware {
+public final class InterceptingTransport: WebSocketMessageInboundMiddleware {
     
     public enum Handling {
         case handled, unhandled(URLSessionWebSocketTask.Message)
     }
     
-    public let next: WebSocketMessageMiddleware?
+    public let nextIn: WebSocketMessageInboundMiddleware?
     let _handle: (_ message: URLSessionWebSocketTask.Message) async throws -> Handling
     
     public init(
-        next: WebSocketMessageMiddleware?,
+        next: WebSocketMessageInboundMiddleware?,
         handle: @escaping (_ message: URLSessionWebSocketTask.Message) async throws -> Handling
     ) {
-        self.next = next
+        self.nextIn = next
         self._handle = handle
     }
     
@@ -39,11 +39,7 @@ public final class InterceptingTransport: WebSocketMessageMiddleware {
         case .handled:
             return nil
         case .unhandled(let message):
-            return try await next?.handle(message)
+            return try await nextIn?.handle(message)
         }
-    }
-    
-    public func send(_ message: URLSessionWebSocketTask.Message) async throws {
-        try await next?.send(message)
     }
 }

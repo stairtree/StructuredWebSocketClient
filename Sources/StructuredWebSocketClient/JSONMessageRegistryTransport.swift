@@ -19,17 +19,17 @@ import FoundationNetworking
 
 /// A `MessageTransport` that will try to decode incoming messages based on previously registered
 /// `MessageType`s and call their handler when they arrive.
-public final class JSONMessageRegistryTransport<Message: MessageType>: WebSocketMessageMiddleware {
+public final class JSONMessageRegistryTransport<Message: MessageType>: WebSocketMessageInboundMiddleware {
     private let messageDecoder: JSONDecoder
     internal let messageRegister: MessageRegister = .init()
     
-    public let next: (any WebSocketMessageMiddleware)?
+    public let nextIn: WebSocketMessageInboundMiddleware?
     
     public init(
-        next: any WebSocketMessageMiddleware,
+        nextIn: WebSocketMessageInboundMiddleware?,
         messageDecoder: JSONDecoder = .init()
     ) {
-        self.next = next
+        self.nextIn = nextIn
         self.messageDecoder = messageDecoder
         messageDecoder.userInfo[.messageRegister] = self.messageRegister
     }
@@ -39,14 +39,10 @@ public final class JSONMessageRegistryTransport<Message: MessageType>: WebSocket
             // call the handler of the registered message
             try self.parse(received).handle()
             // forward to base
-            return try await next?.handle(received)
+            return try await nextIn?.handle(received)
         } catch {
-            return try await next?.handle(received)
+            return try await nextIn?.handle(received)
         }
-    }
-    
-    public func send(_ message: URLSessionWebSocketTask.Message) async throws {
-        try await next?.send(message)
     }
     
     // Default handling for JSON messages. Other transports can elect to call this

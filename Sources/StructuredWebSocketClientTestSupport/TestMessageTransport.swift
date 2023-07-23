@@ -97,6 +97,7 @@ public final class TestMessageTransport: MessageTransport {
     
     public func resume() {
         Task {
+            try await Task.sleep(nanoseconds: 1 * NSEC_PER_SEC)
             await events.send(.state(.connected))
             print("condition is met")
             await awaiter.trigger()
@@ -104,16 +105,17 @@ public final class TestMessageTransport: MessageTransport {
     }
 }
 
-public final class NoOpMiddleWare: WebSocketMessageMiddleware {
-    public var next: (StructuredWebSocketClient.WebSocketMessageMiddleware)? { nil }
-    
+public final class NoOpMiddleWare: WebSocketMessageInboundMiddleware, WebSocketMessageOutboundMiddleware {
+    public var nextIn: WebSocketMessageInboundMiddleware? { nil }
+    public var nextOut: WebSocketMessageOutboundMiddleware? { nil }
+
     public init() {}
     
-    public func send(_ message: URLSessionWebSocketTask.Message) async throws {
-        try await next?.send(message)
+    public func send(_ message: URLSessionWebSocketTask.Message) async throws -> URLSessionWebSocketTask.Message? {
+        try await nextOut?.send(message)
     }
     
     public func handle(_ received: URLSessionWebSocketTask.Message) async throws -> URLSessionWebSocketTask.Message? {
-        return received
+        try await nextIn?.handle(received)
     }
 }

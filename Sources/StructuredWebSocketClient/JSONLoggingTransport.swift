@@ -19,15 +19,22 @@ import FoundationNetworking
 #endif
 
 /// Assumes messages containing JSON and logs them
-public final class JSONLoggingTransport: WebSocketMessageMiddleware {
+public final class JSONLoggingTransport: WebSocketMessageInboundMiddleware, WebSocketMessageOutboundMiddleware {
     
     private let logger: Logger
     let label: String
-    public let next: WebSocketMessageMiddleware?
-    
-    public init(label: String, next: WebSocketMessageMiddleware, logger: Logger? = nil) {
+    public let nextIn: WebSocketMessageInboundMiddleware?
+    public let nextOut: WebSocketMessageOutboundMiddleware?
+
+    public init(
+        label: String,
+        nextIn: WebSocketMessageInboundMiddleware?,
+        nextOut: WebSocketMessageOutboundMiddleware?,
+        logger: Logger? = nil
+    ) {
         self.label = label
-        self.next = next
+        self.nextIn = nextIn
+        self.nextOut = nextOut
         self.logger = logger ?? Logger(label: label)
     }
     
@@ -35,13 +42,16 @@ public final class JSONLoggingTransport: WebSocketMessageMiddleware {
         let json = try JSONSerialization.jsonObject(with: try received.data())
         let data = try JSONSerialization.data(withJSONObject: json, options: [])
         logger.debug("⬇︎: \(String(decoding: data, as: UTF8.self))")
-        return try await next?.handle(received)
+        return try await nextIn?.handle(received)
     }
     
-    public func send(_ message: URLSessionWebSocketTask.Message) async throws {
+    public func send(_ message: URLSessionWebSocketTask.Message) async throws -> URLSessionWebSocketTask.Message? {
         let json = try JSONSerialization.jsonObject(with: try message.data())
         let data = try JSONSerialization.data(withJSONObject: json, options: [])
         logger.debug("⬆︎: \(String(decoding: data, as: UTF8.self))")
-        try await next?.send(message)
+        if let nextOut {
+            return try await nextOut.send(message)
+        }
+        return message
     }
 }

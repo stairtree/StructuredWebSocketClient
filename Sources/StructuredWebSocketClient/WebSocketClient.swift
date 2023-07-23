@@ -40,17 +40,20 @@ public final class WebSocketClient {
     public let label: String
     private let logger: Logger
     internal let transport: MessageTransport
-    internal let middleware: WebSocketMessageMiddleware?
-    
+    internal let inboundMiddleware: WebSocketMessageInboundMiddleware?
+    internal let outboundMiddleware: WebSocketMessageOutboundMiddleware?
+
     public init(
         label: String = "",
-        middleware: WebSocketMessageMiddleware?,
+        inboundMiddleware: WebSocketMessageInboundMiddleware?,
+        outboundMiddleware: WebSocketMessageOutboundMiddleware?,
         transport: MessageTransport,
         logger: Logger? = nil
     ) {
         self.label = label
         self.transport = transport
-        self.middleware = middleware
+        self.inboundMiddleware = inboundMiddleware
+        self.outboundMiddleware = outboundMiddleware
         self.logger = logger ?? Logger(label: label)
         self.events = .init()
     }
@@ -61,6 +64,7 @@ public final class WebSocketClient {
     
     public func connect() async {
         _state = .connecting
+        await events.send(.state(.connecting))
         transport.resume()
         do {
             try await withThrowingTaskGroup(of: Void.self) { group in
@@ -72,7 +76,7 @@ public final class WebSocketClient {
                             await self.events.send(.state(s))
                         case let .message(m):
                             // pipe message through middleware
-                            if let middleware = self.middleware {
+                            if let middleware = self.inboundMiddleware {
                                 if let handled = try await middleware.handle(m) {
                                     await self.events.send(.message(handled))
                                 }
@@ -96,8 +100,15 @@ public final class WebSocketClient {
         transport.cancel(with: .normalClosure, reason: Data(reason?.utf8 ?? "Closing connection".utf8))
     }
     
+    /// Pass the message through all the middleware, and then send it via the transport (if it hasn't been swallowed by middleware)
     public func sendMessage(_ message: URLSessionWebSocketTask.Message) async throws {
-        try await transport.send(message)
+        if let outboundMiddleware {
+            if let msg = try await outboundMiddleware.send(message) {
+                try await transport.send(msg)
+            }
+        } else {
+            try await transport.send(message)
+        }
     }
 }
 
