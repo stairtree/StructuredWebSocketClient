@@ -28,12 +28,7 @@ public final class WebSocketClient {
         case disconnecting, disconnected, connecting, connected
     }
     
-    private var _state: State = .disconnected {
-        didSet {
-            guard _state != oldValue else { return }
-//            stateContinuation.yield(_state)
-        }
-    }
+    private var _state: State = .disconnected
     
     public let events: AsyncChannel<WebSocketEvents>
     
@@ -62,9 +57,16 @@ public final class WebSocketClient {
         self.logger.trace("♻️ Deinit of WebSocketClient")
     }
     
+    private func setState(to newState: State) async {
+        let oldValue = self._state
+        self._state = newState
+        guard _state != oldValue else { return }
+        await events.send(.state(self._state))
+    }
+    
     public func connect() async {
-        _state = .connecting
-        await events.send(.state(.connecting))
+        await self.setState(to: .connecting)
+
         transport.resume()
         do {
             try await withThrowingTaskGroup(of: Void.self) { group in
@@ -72,8 +74,7 @@ public final class WebSocketClient {
                     for try await transportEvent in self.transport.events {
                         switch transportEvent {
                         case let .state(s):
-                            self._state = s
-                            await self.events.send(.state(s))
+                            await self.setState(to: s)
                         case let .message(m):
                             // pipe message through middleware
                             if let middleware = self.inboundMiddleware {
@@ -95,8 +96,8 @@ public final class WebSocketClient {
         }
     }
     
-    public func disconnect(reason: String?) {
-        _state = .disconnecting
+    public func disconnect(reason: String?) async {
+        await self.setState(to: .disconnecting)
         transport.cancel(with: .normalClosure, reason: Data(reason?.utf8 ?? "Closing connection".utf8))
     }
     
