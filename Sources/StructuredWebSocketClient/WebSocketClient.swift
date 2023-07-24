@@ -18,6 +18,11 @@ import AsyncAlgorithms
 import FoundationNetworking
 #endif
 
+public enum WebSocketEvents {
+    case state(WebSocketClient.State)
+    case message(URLSessionWebSocketTask.Message)
+}
+
 public final class WebSocketClient {
     public enum State: Equatable, Hashable {
         case disconnecting, disconnected, connecting, connected
@@ -28,11 +33,6 @@ public final class WebSocketClient {
             guard _state != oldValue else { return }
 //            stateContinuation.yield(_state)
         }
-    }
-    
-    public enum WebSocketEvents {
-        case state(State)
-        case message(URLSessionWebSocketTask.Message)
     }
     
     public let events: AsyncChannel<WebSocketEvents>

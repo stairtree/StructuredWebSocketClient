@@ -62,7 +62,7 @@ actor Awaiter {
 }
 
 public final class TestMessageTransport: MessageTransport {
-    public var events: AsyncThrowingChannel<WebSocketClient.WebSocketEvents, Error> = .init()
+    public var events: AsyncThrowingChannel<WebSocketEvents, Error> = .init()
     private var awaiter: Awaiter = .init()
     
     public init(initialMessages: [URLSessionWebSocketTask.Message] = []) {
@@ -75,7 +75,7 @@ public final class TestMessageTransport: MessageTransport {
     }
     
     // will wait until state is connected
-    public func push(_ event: WebSocketClient.WebSocketEvents) async {
+    public func push(_ event: WebSocketEvents) async {
         print("awaiting connection")
         await awaiter.awaitUntilMet {
             print("Sending event")

@@ -22,13 +22,12 @@ public final class URLSessionWebSocketTransport: MessageTransport {
     private let logger: Logger = .init(label: "URLSessionWebSocketTransport")
     private let task: URLSessionWebSocketTask
     private var delegateHandler: WebSocketTaskDelegateHandler!
-    public let events: AsyncThrowingChannel<WebSocketClient.WebSocketEvents, Error> = .init()
+    public let events: AsyncThrowingChannel<WebSocketEvents, Error> = .init()
     
     public init(request: URLRequest, urlSession: URLSession = .shared) {
         self.task = urlSession.webSocketTask(with: request)
         self.delegateHandler = WebSocketTaskDelegateHandler(
             onOpen: { [weak self, messages, logger] `protocol` in
-                logger.info("\(#function): \(`protocol` ?? "nil")")
                 await self?.events.send(.state(.connected))
                 // Guarantee that we only start reading messages after we have sent
                 // the connected event. If no one is consuming events yet, we will

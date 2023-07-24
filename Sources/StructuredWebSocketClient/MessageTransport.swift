@@ -20,7 +20,7 @@ import FoundationNetworking
 public protocol MessageTransport {
     /// The stream of events.
     /// The stream must be closed once the transport is cancelled, or closed otherwise.
-    var events: AsyncThrowingChannel<WebSocketClient.WebSocketEvents, Error> { get }
+    var events: AsyncThrowingChannel<WebSocketEvents, Error> { get }
     /// Emit an outbound message
     func send(_ message: URLSessionWebSocketTask.Message) async throws
     func cancel(with closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?)
