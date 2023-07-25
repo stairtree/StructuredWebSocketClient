@@ -41,6 +41,11 @@ public struct MessageMetadata: Sendable {
     public var number: Int
     /// The uptimenanoseconds the message was received from the network
     public var receivedAt: DispatchTime
+    
+    public init(number: Int, receivedAt: DispatchTime) {
+        self.number = number
+        self.receivedAt = receivedAt
+    }
 }
 
 public protocol WebSocketMessageInboundMiddleware {
