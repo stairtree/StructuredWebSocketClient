@@ -34,19 +34,19 @@ public final class JSONMessageRegistryTransport<Message: MessageType>: WebSocket
         messageDecoder.userInfo[.messageRegister] = self.messageRegister
     }
     
-    public func handle(_ received: URLSessionWebSocketTask.Message) async throws -> URLSessionWebSocketTask.Message? {
+    public func handle(_ received: URLSessionWebSocketTask.Message) async throws -> MessageHandling {
         do {
             // call the handler of the registered message
-            try self.parse(received).handle()
-            // forward to base
-            return try await nextIn?.handle(received)
+            try await self.parse(received).handle()
+            return .handled
         } catch {
-            return try await nextIn?.handle(received)
+            if let nextIn { return try await nextIn.handle(received) }
+            return .unhandled(received)
         }
     }
     
-    // Default handling for JSON messages. Other transports can elect to call this
-    public func parse(_ received: URLSessionWebSocketTask.Message) throws -> Message {
+    // Default handling for JSON messages.
+    private func parse(_ received: URLSessionWebSocketTask.Message) throws -> Message {
         let message: Message
         switch received {
         case let .data(data):

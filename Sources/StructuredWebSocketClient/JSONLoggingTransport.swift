@@ -38,20 +38,25 @@ public final class JSONLoggingTransport: WebSocketMessageInboundMiddleware, WebS
         self.logger = logger ?? Logger(label: label)
     }
     
-    public func handle(_ received: URLSessionWebSocketTask.Message) async throws -> URLSessionWebSocketTask.Message? {
-        let json = try JSONSerialization.jsonObject(with: try received.data())
-        let data = try JSONSerialization.data(withJSONObject: json, options: [])
-        logger.debug("⬇︎: \(String(decoding: data, as: UTF8.self))")
-        return try await nextIn?.handle(received)
+    public func handle(_ received: URLSessionWebSocketTask.Message) async throws -> MessageHandling {
+        if logger.logLevel == .trace {
+            let json = try JSONSerialization.jsonObject(with: try received.data())
+            let data = try JSONSerialization.data(withJSONObject: json, options: [])
+            logger.trace("⬇︎: \(String(decoding: data, as: UTF8.self))")
+        }
+        
+        if let nextIn { return try await nextIn.handle(received) }
+        return .unhandled(received)
     }
     
     public func send(_ message: URLSessionWebSocketTask.Message) async throws -> URLSessionWebSocketTask.Message? {
-        let json = try JSONSerialization.jsonObject(with: try message.data())
-        let data = try JSONSerialization.data(withJSONObject: json, options: [])
-        logger.debug("⬆︎: \(String(decoding: data, as: UTF8.self))")
-        if let nextOut {
-            return try await nextOut.send(message)
+        if logger.logLevel == .trace {
+            let json = try JSONSerialization.jsonObject(with: try message.data())
+            let data = try JSONSerialization.data(withJSONObject: json, options: [])
+            logger.trace("⬆︎: \(String(decoding: data, as: UTF8.self))")
         }
+        
+        if let nextOut { return try await nextOut.send(message) }
         return message
     }
 }

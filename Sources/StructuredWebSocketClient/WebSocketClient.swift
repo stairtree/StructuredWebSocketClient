@@ -78,8 +78,12 @@ public final class WebSocketClient {
                         case let .message(m):
                             // pipe message through middleware
                             if let middleware = self.inboundMiddleware {
-                                if let handled = try await middleware.handle(m) {
-                                    await self.events.send(.message(handled))
+                                let handled = try await middleware.handle(m)
+                                switch handled {
+                                case .handled:
+                                    ()
+                                case let .unhandled(unhandled):
+                                    await self.events.send(.message(unhandled))
                                 }
                             } else {
                                 await self.events.send(.message(m))

@@ -115,7 +115,7 @@ public final class NoOpMiddleWare: WebSocketMessageInboundMiddleware, WebSocketM
         try await nextOut?.send(message)
     }
     
-    public func handle(_ received: URLSessionWebSocketTask.Message) async throws -> URLSessionWebSocketTask.Message? {
-        try await nextIn?.handle(received)
+    public func handle(_ received: URLSessionWebSocketTask.Message) async throws -> MessageHandling {
+        try await nextIn?.handle(received) ?? .unhandled(received)
     }
 }

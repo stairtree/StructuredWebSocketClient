@@ -32,13 +32,19 @@ public protocol MessageTransportDelegate: AnyObject {
     func didCloseWith(closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?)
 }
 
+public enum MessageHandling {
+    case handled, unhandled(URLSessionWebSocketTask.Message)
+}
+
 public protocol WebSocketMessageInboundMiddleware {
     /// The next middleware in the chain
-    ///
-    /// - TODO: The order should be reversed for outgoing middleware
     var nextIn: WebSocketMessageInboundMiddleware? { get }
-    /// handle an incoming message
-    func handle(_ received: URLSessionWebSocketTask.Message) async throws -> URLSessionWebSocketTask.Message?
+    /// Handle an incoming message
+    ///
+    /// If the middleware handled the message, it must return `.handled`. Otherwise, the client will emit
+    /// the message as `.message` event in its events channel. The middleware may also just repackage
+    /// the message and hand it back to the client.
+    func handle(_ received: URLSessionWebSocketTask.Message) async throws -> MessageHandling
 }
 
 public protocol WebSocketMessageOutboundMiddleware {
