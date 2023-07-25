@@ -36,6 +36,13 @@ public enum MessageHandling {
     case handled, unhandled(URLSessionWebSocketTask.Message)
 }
 
+public struct MessageMetadata: Sendable {
+    /// The increasing number of the message
+    public var number: Int
+    /// The uptimenanoseconds the message was received from the network
+    public var receivedAt: DispatchTime
+}
+
 public protocol WebSocketMessageInboundMiddleware {
     /// The next middleware in the chain
     var nextIn: WebSocketMessageInboundMiddleware? { get }
@@ -44,7 +51,7 @@ public protocol WebSocketMessageInboundMiddleware {
     /// If the middleware handled the message, it must return `.handled`. Otherwise, the client will emit
     /// the message as `.message` event in its events channel. The middleware may also just repackage
     /// the message and hand it back to the client.
-    func handle(_ received: URLSessionWebSocketTask.Message) async throws -> MessageHandling
+    func handle(_ received: URLSessionWebSocketTask.Message, metadata: MessageMetadata) async throws -> MessageHandling
 }
 
 public protocol WebSocketMessageOutboundMiddleware {

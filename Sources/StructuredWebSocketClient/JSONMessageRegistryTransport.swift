@@ -34,13 +34,13 @@ public final class JSONMessageRegistryTransport<Message: MessageType>: WebSocket
         messageDecoder.userInfo[.messageRegister] = self.messageRegister
     }
     
-    public func handle(_ received: URLSessionWebSocketTask.Message) async throws -> MessageHandling {
+    public func handle(_ received: URLSessionWebSocketTask.Message, metadata: MessageMetadata) async throws -> MessageHandling {
         do {
             // call the handler of the registered message
             try await self.parse(received).handle()
             return .handled
         } catch {
-            if let nextIn { return try await nextIn.handle(received) }
+            if let nextIn { return try await nextIn.handle(received, metadata: metadata) }
             return .unhandled(received)
         }
     }

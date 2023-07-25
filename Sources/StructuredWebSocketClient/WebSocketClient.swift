@@ -18,13 +18,13 @@ import AsyncAlgorithms
 import FoundationNetworking
 #endif
 
-public enum WebSocketEvents {
+public enum WebSocketEvents: Sendable {
     case state(WebSocketClient.State)
-    case message(URLSessionWebSocketTask.Message)
+    case message(URLSessionWebSocketTask.Message, metadata: MessageMetadata)
 }
 
 public final class WebSocketClient {
-    public enum State: Equatable, Hashable {
+    public enum State: Hashable, Sendable {
         case disconnecting, disconnected, connecting, connected
     }
     
@@ -75,18 +75,18 @@ public final class WebSocketClient {
                         switch transportEvent {
                         case let .state(s):
                             await self.setState(to: s)
-                        case let .message(m):
+                        case let .message(m, metadata: meta):
                             // pipe message through middleware
                             if let middleware = self.inboundMiddleware {
-                                let handled = try await middleware.handle(m)
+                                let handled = try await middleware.handle(m, metadata: meta)
                                 switch handled {
                                 case .handled:
                                     ()
                                 case let .unhandled(unhandled):
-                                    await self.events.send(.message(unhandled))
+                                    await self.events.send(.message(unhandled, metadata: meta))
                                 }
                             } else {
-                                await self.events.send(.message(m))
+                                await self.events.send(.message(m, metadata: meta))
                             }
                         }
                     }
@@ -128,6 +128,17 @@ extension URLSessionWebSocketTask.Message {
             return data
         case let .string(text):
             return Data(text.utf8)
+        @unknown default:
+            throw WebSocketError.unknownMessageFormat
+        }
+    }
+    
+    public func text() throws -> String {
+        switch self {
+        case let .data(data):
+            return String(decoding: data, as: UTF8.self)
+        case let .string(text):
+            return text
         @unknown default:
             throw WebSocketError.unknownMessageFormat
         }
