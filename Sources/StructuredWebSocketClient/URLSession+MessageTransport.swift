@@ -80,7 +80,7 @@ public final class URLSessionWebSocketTransport: MessageTransport {
             messages.finish()
             return
         }
-        
+#if canImport(Darwin)
         task.receive { [weak self] result in
             Task { [weak self] in
                 do {
@@ -92,5 +92,6 @@ public final class URLSessionWebSocketTransport: MessageTransport {
                 }
             }
         }
+#endif
     }
 }
