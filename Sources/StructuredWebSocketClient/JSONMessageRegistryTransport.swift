@@ -79,7 +79,7 @@ extension JSONMessageRegistryTransport {
 }
 
 public protocol MessageType: Decodable {
-    func handle()
+    func handle() async
 }
 
 // MARK: MessageName
@@ -96,7 +96,7 @@ public struct MessageName: Codable, Equatable, Hashable {
     public let decoder: (Decoder, SingleValueDecodingContainer) throws -> Any
     
     /// Type-erased handler for the message
-    public let handler: (Any) -> Void
+    public let handler: (Any) async -> Void
     
     /// The internal `String` representation of this `MessageName`
     ///
@@ -106,18 +106,18 @@ public struct MessageName: Codable, Equatable, Hashable {
     public init<M>(
         _ value: String,
         associatedType: M.Type,
-        handler: @escaping (M) -> Void
+        handler: @escaping (M) async -> Void
     ) where M: Decodable {
         self.value = value
         self.decoder = { _, container in try container.decode(M.self) }
-        self.handler = { message in handler(message as! M) }
+        self.handler = { message in await handler(message as! M) }
     }
     
     /// Builder for inbound message names
     public static func initializer<M>(
         for value: String,
         ofType type: M.Type
-    ) -> (@escaping (M) -> Void) -> MessageName where M: Decodable {
+    ) -> (@escaping (M) async -> Void) -> MessageName where M: Decodable {
         return { handler in
             return .init(value, associatedType: type, handler: handler)
         }
@@ -164,14 +164,14 @@ public enum MessageError: Error, Hashable {
 ///
 /// Use to defer declaring the message type and leave it to a higher level library
 public protocol ChildHandler {
-    func handle(_ message: Any)
+    func handle(_ message: Any) async
     func decode(_ decoder: Decoder) throws -> Any
 }
 
 extension MessageName {
     public init<M>(name: String, childHandler: M) where M: ChildHandler {
         self.value = name
-        self.handler = { message in childHandler.handle(message) }
+        self.handler = { message in await childHandler.handle(message) }
         self.decoder = { decoder, _ in try childHandler.decode(decoder) }
     }
 }
