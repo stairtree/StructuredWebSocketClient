@@ -68,9 +68,9 @@ public final class WebSocketClient {
         await self.setState(to: .connecting)
 
         transport.resume()
-        do {
-            try await withThrowingTaskGroup(of: Void.self) { group in
-                group.addTask {
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask {
+                do {
                     for try await transportEvent in self.transport.events {
                         switch transportEvent {
                         case let .state(s):
@@ -90,13 +90,15 @@ public final class WebSocketClient {
                             }
                         }
                     }
-                    self.logger.info("Transport events ended")
+                } catch {
+                    self.logger.error("\(error)")
                     self.events.finish()
                 }
-                try await group.next()
+                self.logger.debug("Transport events ended")
             }
-        } catch {
-            logger.error("> \(error)")
+            
+            // do we even need this?
+            await group.next()
         }
     }
     

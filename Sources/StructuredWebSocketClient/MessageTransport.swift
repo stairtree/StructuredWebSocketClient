@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 import Foundation
+import Logging
 import AsyncAlgorithms
 #if canImport(FoundationNetworking)
 import FoundationNetworking
@@ -64,49 +65,4 @@ public protocol WebSocketMessageOutboundMiddleware {
     var nextOut: WebSocketMessageOutboundMiddleware? { get }
     /// Emit an outbound message
     func send(_ message: URLSessionWebSocketTask.Message) async throws -> URLSessionWebSocketTask.Message?
-}
-
-
-// MARK: - WebSocketTaskDelegate
-
-public final class WebSocketTaskDelegateHandler: NSObject {
-    let onOpen: (_ `protocol`: String?) async -> Void
-    let onClose: (_ closeCode: URLSessionWebSocketTask.CloseCode, _ reason: Data?) async -> Void
-    
-    init(onOpen: @escaping (_ `protocol`: String?) async -> Void, onClose: @escaping (_ closeCode: URLSessionWebSocketTask.CloseCode, _ reason: Data?) async -> Void) {
-        self.onOpen = onOpen
-        self.onClose = onClose
-    }
-    
-    public func didOpenWithProtocol(_ protocol: String?) async {
-        await onOpen(`protocol`)
-    }
-    
-    public func didCloseWith(closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) async {
-        await onClose(closeCode ,reason)
-    }
-}
-
-extension WebSocketTaskDelegateHandler: URLSessionWebSocketDelegate {
-    public func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didOpenWithProtocol protocol: String?) {
-        Task { await didOpenWithProtocol(`protocol`) }
-    }
-    
-    public func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didCloseWith closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
-        Task { await didCloseWith(closeCode: closeCode, reason: reason) }
-    }
-    
-    public func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        // Timeout
-        if let nsError = error as? NSError, nsError.code == 60 {
-            Task {
-                await onClose(
-                    .abnormalClosure,
-                    nsError.localizedFailureReason.map { Data($0.utf8) } ?? Data(nsError.localizedDescription.utf8)
-                )
-            }
-        }
-        // We don't want to call onClose again here, as we'd call it twice then.
-        // TODO: Figure out when we'd get this callback but not `WebSocketTaskDelegateHandler.urlSession(_:webSocketTask:didCloseWith:reason:)`
-    }
 }
