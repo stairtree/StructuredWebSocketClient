@@ -92,25 +92,14 @@ public final class URLSessionWebSocketTransport: MessageTransport {
     }
     
     private func didCompleteWithError(_ error: Error?) async {
-        // Timeout
-        if let nsError = error as? NSError {
-            let reason = nsError.localizedFailureReason.map { Data($0.utf8) }
-                ?? Data(nsError.localizedDescription.utf8)
-            logger.debug("""
+        guard let error else { return }
+        
+        let nsError = error as NSError
+        let reason = nsError.localizedFailureReason.map { Data($0.utf8) } ?? Data(nsError.localizedDescription.utf8)
+        logger.debug("""
             WebSocketClient did complete with error (code: \(nsError.code), reason: \(reason))
             """)
-            self.events.fail(nsError)
-            self.events.finish()
-            
-        } else {
-            // We don't want to call onClose again here, as we'd call it twice then.
-            // TODO: Figure out when we'd get this callback but not `WebSocketTaskDelegateHandler.urlSession(_:webSocketTask:didCloseWith:reason:)`
-            if let error {
-                logger.error("Error in \(#function): \(error)")
-            } else {
-                logger.warning("\(#function): error = nil")
-            }
-        }
+        self.events.fail(nsError)
     }
     
     private func readNextMessage() {
