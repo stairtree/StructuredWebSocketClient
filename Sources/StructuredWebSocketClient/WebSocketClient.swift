@@ -32,24 +32,21 @@ public final class WebSocketClient {
     
     public let events: AsyncChannel<WebSocketEvents>
     
-    public let label: String
     private let logger: Logger
     internal let transport: MessageTransport
     internal let inboundMiddleware: WebSocketMessageInboundMiddleware?
     internal let outboundMiddleware: WebSocketMessageOutboundMiddleware?
 
     public init(
-        label: String = "",
         inboundMiddleware: WebSocketMessageInboundMiddleware?,
         outboundMiddleware: WebSocketMessageOutboundMiddleware?,
         transport: MessageTransport,
         logger: Logger? = nil
     ) {
-        self.label = label
         self.transport = transport
         self.inboundMiddleware = inboundMiddleware
         self.outboundMiddleware = outboundMiddleware
-        self.logger = logger ?? Logger(label: label)
+        self.logger = logger ?? Logger(label: "WebSocketClient")
         self.events = .init()
     }
     
@@ -72,6 +69,7 @@ public final class WebSocketClient {
             group.addTask {
                 do {
                     for try await transportEvent in self.transport.events {
+                        try Task.checkCancellation()
                         switch transportEvent {
                         case let .state(s):
                             await self.setState(to: s)
@@ -91,7 +89,7 @@ public final class WebSocketClient {
                         }
                     }
                 } catch {
-                    self.logger.error("\(error)")
+                    self.logger.error("events: \(error.localizedDescription)")
                     self.events.finish()
                 }
                 self.logger.debug("Transport events ended")
