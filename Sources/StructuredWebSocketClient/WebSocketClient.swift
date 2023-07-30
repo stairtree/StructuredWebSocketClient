@@ -90,9 +90,9 @@ extension WebSocketEvent: CustomDebugStringConvertible {
     public var debugDescription: String {
         switch self {
         case let .state(s):
-            "\(s)"
+            return "\(s)"
         case let .message(msg, metadata: meta):
-            "'\(msg)', metadata: \(meta)"
+            return "'\(msg)', metadata: \(meta)"
         }
     }
 }
