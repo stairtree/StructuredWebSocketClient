@@ -3,7 +3,7 @@ public struct AnyAsyncSequence<Element>: AsyncSequence {
     public typealias AsyncIterator = AnyAsyncIterator<Element>
     public typealias Element = Element
 
-    let _makeAsyncIterator: () -> AnyAsyncIterator<Element>
+    let _makeAsyncIterator: @Sendable () -> AnyAsyncIterator<Element>
 
     public struct AnyAsyncIterator<E>: AsyncIteratorProtocol {
         public typealias Element = E
@@ -38,3 +38,6 @@ extension AsyncSequence {
         AnyAsyncSequence(seq: self)
     }
 }
+
+// extension AnyAsyncSequence.AnyAsyncIterator: @unchecked Sendable where Element: Sendable {}
+extension AnyAsyncSequence: Sendable where Element: Sendable {}
