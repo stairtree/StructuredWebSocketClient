@@ -54,4 +54,27 @@ final class WebSocketClientTests: XCTestCase {
             try await group.next()
         }
     }
+    
+    func testEchoServer() async throws {
+        // Postman's echo server
+        let request = URLRequest(url: .init(string: "wss://ws.postman-echo.com/raw")!)
+        let client = WebSocketClient(inboundMiddleware: nil, outboundMiddleware: nil, transport: URLSessionWebSocketTransport(request: request))
+        let outMsg = "Hi there"
+        
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            group.addTask {
+                try await client.sendMessage(.string(outMsg))
+            }
+            group.addTask {
+                for try await event in client.connect() {
+                    if case let .message(message, metadata) = event {
+                        XCTAssertEqual(try message.string(), outMsg)
+                        XCTAssertEqual(metadata.number, 1)
+                        await client.disconnect(reason: "done testing")
+                    }
+                }
+            }
+            try await group.next()
+        }
+    }
 }
