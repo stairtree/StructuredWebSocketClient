@@ -26,7 +26,7 @@ public final class URLSessionWebSocketTransport: MessageTransport {
     /// Channel will fail if reading a message fails
     private var messages: AsyncThrowingChannel<URLSessionWebSocketTask.Message, Error> = .init()
     /// Will fail if reading a message failed or if the websocket task completes with an error
-    public let events: AsyncThrowingChannel<WebSocketEvents, Error> = .init()
+    private let events: AsyncThrowingChannel<WebSocketEvent, Error> = .init()
     
     public init(request: URLRequest, urlSession: URLSession = .shared, logger: Logger? = nil) {
         self.logger = logger ?? .init(label: "URLSessionWebSocketTransport")
@@ -52,12 +52,13 @@ public final class URLSessionWebSocketTransport: MessageTransport {
         try await task.send(message)
     }
     
-    public func cancel(with closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
+    public func close(with closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
         task.cancel(with: closeCode, reason: reason)
     }
     
-    public func resume() {
+    public func connect() -> AnyAsyncSequence<WebSocketEvent> {
         task.resume()
+        return events.eraseToAnyAsyncSequence()
     }
     
     // MARK: - Private
@@ -72,7 +73,7 @@ public final class URLSessionWebSocketTransport: MessageTransport {
         do {
             var count = 1
             for try await message in messages {
-                let meta = MessageMetadata(number: count, receivedAt: .now())
+                let meta = MessageMetadata(number: count)
                 await self.events.send(.message(message, metadata: meta))
                 count += 1
             }
@@ -123,7 +124,7 @@ public final class URLSessionWebSocketTransport: MessageTransport {
     }
 }
 
-// MARK: - WebSocketTaskDelegate
+// MARK: - Helper
 
 final class WebSocketTaskDelegateHandler: NSObject {
     private let logger: Logger

@@ -45,7 +45,7 @@ public final class JSONLoggingTransport: WebSocketMessageInboundMiddleware, WebS
                 let data = try JSONSerialization.data(withJSONObject: json, options: [])
                 logger.trace("⬇︎: \(String(decoding: data, as: UTF8.self))")
             } else {
-                logger.trace("⬇︎ \(metadata.number): \((try? received.text()) ?? "")")
+                logger.trace("⬇︎ \(metadata.number): \((try? received.string()) ?? "")")
             }
         }
         
@@ -60,7 +60,7 @@ public final class JSONLoggingTransport: WebSocketMessageInboundMiddleware, WebS
                 let data = try JSONSerialization.data(withJSONObject: json, options: [])
                 logger.trace("⬆︎: \(String(decoding: data, as: UTF8.self))")
             } else {
-                logger.trace("⬆︎: \((try? message.text()) ?? "")")
+                logger.trace("⬆︎: \((try? message.string()) ?? "")")
             }
         }
         

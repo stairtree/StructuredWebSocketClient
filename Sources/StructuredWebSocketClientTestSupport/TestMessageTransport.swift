@@ -62,23 +62,18 @@ actor Awaiter {
 }
 
 public final class TestMessageTransport: MessageTransport {
-    public var events: AsyncThrowingChannel<WebSocketEvents, Error> = .init()
+    var messageNumber: Int = 0
+    private var events: AsyncThrowingChannel<WebSocketEvent, Error> = .init()
     private var awaiter: Awaiter = .init()
+    private var _initialMessages: [WebSocketEvent]
     
     public init(initialMessages: [URLSessionWebSocketTask.Message] = []) {
-        Task {
-            for message in initialMessages {
-                await self.push(.message(message))
-            }
-            // here we should trigger the awaiter to enter the escond waiting phase
-        }
+        _initialMessages = initialMessages.enumerated().map { .message($1, metadata: .init(number: $0 + 1)) }
     }
     
     // will wait until state is connected
-    public func push(_ event: WebSocketEvents) async {
-        print("awaiting connection")
+    public func push(_ event: WebSocketEvent) async {
         await awaiter.awaitUntilMet {
-            print("Sending event")
             await self.events.send(event)
         }
     }
@@ -88,20 +83,17 @@ public final class TestMessageTransport: MessageTransport {
         // print("Sending: \(String(decoding: try message.data(), as: UTF8.self))")
     }
     
-    public func cancel(with closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
+    public func close(with closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
         Task {
             await events.send(.state(.disconnected))
             self.events.finish()
         }
     }
     
-    public func resume() {
-        Task {
-            try await Task.sleep(nanoseconds: 1 * NSEC_PER_SEC)
-            await events.send(.state(.connected))
-            print("condition is met")
-            await awaiter.trigger()
-        }
+    public func connect() -> AnyAsyncSequence<WebSocketEvent> {
+        // if push is called before connect this will only send the messages after the return
+        Task { await awaiter.trigger() }
+        return chain([.state(.connected)].async, _initialMessages.async, events).eraseToAnyAsyncSequence()
     }
 }
 
@@ -115,7 +107,7 @@ public final class NoOpMiddleWare: WebSocketMessageInboundMiddleware, WebSocketM
         try await nextOut?.send(message)
     }
     
-    public func handle(_ received: URLSessionWebSocketTask.Message) async throws -> MessageHandling {
-        try await nextIn?.handle(received) ?? .unhandled(received)
+    public func handle(_ received: URLSessionWebSocketTask.Message, metadata: StructuredWebSocketClient.MessageMetadata) async throws -> StructuredWebSocketClient.MessageHandling {
+        try await nextIn?.handle(received, metadata: metadata) ?? .unhandled(received)
     }
 }

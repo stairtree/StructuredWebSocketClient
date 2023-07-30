@@ -13,96 +13,65 @@
 
 import Foundation
 import Logging
-import AsyncAlgorithms
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
 
-public enum WebSocketEvents: Sendable {
+public enum WebSocketEvent: Sendable {
     case state(WebSocketClient.State)
     case message(URLSessionWebSocketTask.Message, metadata: MessageMetadata)
 }
 
 public final class WebSocketClient {
     public enum State: Hashable, Sendable {
-        case disconnecting, disconnected, connecting, connected
+        case connected, disconnected
     }
     
-    private var _state: State = .disconnected
-    
-    public let events: AsyncChannel<WebSocketEvents>
-    
     private let logger: Logger
-    internal let transport: MessageTransport
+    internal let transport: any MessageTransport
     internal let inboundMiddleware: WebSocketMessageInboundMiddleware?
     internal let outboundMiddleware: WebSocketMessageOutboundMiddleware?
 
     public init(
         inboundMiddleware: WebSocketMessageInboundMiddleware?,
         outboundMiddleware: WebSocketMessageOutboundMiddleware?,
-        transport: MessageTransport,
+        transport: any MessageTransport,
         logger: Logger? = nil
     ) {
         self.transport = transport
         self.inboundMiddleware = inboundMiddleware
         self.outboundMiddleware = outboundMiddleware
         self.logger = logger ?? Logger(label: "WebSocketClient")
-        self.events = .init()
     }
     
     deinit {
         self.logger.trace("♻️ Deinit of WebSocketClient")
     }
     
-    private func setState(to newState: State) async {
-        let oldValue = self._state
-        self._state = newState
-        guard _state != oldValue else { return }
-        await events.send(.state(self._state))
-    }
-    
-    public func connect() async {
-        await self.setState(to: .connecting)
-
-        transport.resume()
-        await withTaskGroup(of: Void.self) { group in
-            group.addTask {
-                do {
-                    for try await transportEvent in self.transport.events {
-                        try Task.checkCancellation()
-                        switch transportEvent {
-                        case let .state(s):
-                            await self.setState(to: s)
-                        case let .message(m, metadata: meta):
-                            // pipe message through middleware
-                            if let middleware = self.inboundMiddleware {
-                                let handled = try await middleware.handle(m, metadata: meta)
-                                switch handled {
-                                case .handled:
-                                    ()
-                                case let .unhandled(unhandled):
-                                    await self.events.send(.message(unhandled, metadata: meta))
-                                }
-                            } else {
-                                await self.events.send(.message(m, metadata: meta))
-                            }
-                        }
+    public func connect() -> AnyAsyncSequence<WebSocketEvent> {
+        self.transport.connect().compactMap { e -> WebSocketEvent? in
+            switch e {
+            case let .state(s):
+                return .state(s)
+            case let .message(m, metadata: meta):
+                // pipe message through middleware
+                if let middleware = self.inboundMiddleware {
+                    let handled = try await middleware.handle(m, metadata: meta)
+                    switch handled {
+                    case .handled:
+                        return nil
+                    case let .unhandled(unhandled):
+                        return.message(unhandled, metadata: meta)
                     }
-                } catch {
-                    self.logger.error("events: \(error.localizedDescription)")
-                    self.events.finish()
+                } else {
+                    return .message(m, metadata: meta)
                 }
-                self.logger.debug("Transport events ended")
             }
-            
-            // do we even need this?
-            await group.next()
-        }
+        }.eraseToAnyAsyncSequence()
     }
     
     public func disconnect(reason: String?) async {
-        await self.setState(to: .disconnecting)
-        transport.cancel(with: .normalClosure, reason: Data(reason?.utf8 ?? "Closing connection".utf8))
+        transport.close(with: .normalClosure, reason: Data(reason?.utf8 ?? "Closing connection".utf8))
     }
     
     /// Pass the message through all the middleware, and then send it via the transport (if it hasn't been swallowed by middleware)
@@ -117,8 +86,20 @@ public final class WebSocketClient {
     }
 }
 
+extension WebSocketEvent: CustomDebugStringConvertible {
+    public var debugDescription: String {
+        switch self {
+        case let .state(s):
+            "\(s)"
+        case let .message(msg, metadata: meta):
+            "'\(msg)', metadata: \(meta)"
+        }
+    }
+}
+
 public enum WebSocketError: Error {
     case unknownMessageFormat
+    case notUTF8String
 }
 
 extension URLSessionWebSocketTask.Message {
@@ -133,10 +114,14 @@ extension URLSessionWebSocketTask.Message {
         }
     }
     
-    public func text() throws -> String {
+    public func string() throws -> String {
         switch self {
         case let .data(data):
-            return String(decoding: data, as: UTF8.self)
+            if let str = String(data: data, encoding: .utf8) {
+                return str
+            } else {
+                throw WebSocketError.notUTF8String
+            }
         case let .string(text):
             return text
         @unknown default:

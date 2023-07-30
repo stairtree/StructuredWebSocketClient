@@ -29,7 +29,6 @@ final class WebSocketClientTests: XCTestCase {
         ])
         print("Creating client")
         let client = WebSocketClient(
-            label: "Test",
             inboundMiddleware: NoOpMiddleWare(),
             outboundMiddleware: NoOpMiddleWare(),
             transport: tt,
@@ -38,24 +37,21 @@ final class WebSocketClientTests: XCTestCase {
         print("Awaiting group")
         try await withThrowingTaskGroup(of: Void.self) { group in
             group.addTask {
-                print("connecting")
-                await client.connect()
-            }
-            group.addTask {
-                print("pushing message")
-                await tt.push(.message(.string("Hoy \(Date())")))
+                print("Pushing message 3")
+                await tt.push(.message(.string("Hoy \(Date())"), metadata: .init(number: 3)))
                 try await Task.sleep(nanoseconds: 1 * NSEC_PER_SEC)
-                await tt.push(.message(.string("Hoy again \(Date())")))
-                tt.cancel(with: .goingAway, reason: nil)
+                print("Pushing message 4")
+                await tt.push(.message(.string("Hoy again \(Date())"), metadata: .init(number: 4)))
+                tt.close(with: .goingAway, reason: nil)
             }
             group.addTask {
-                for await event in client.events {
+                print("Connecting")
+                for try await event in client.connect() {
                     print(event)
                 }
                 print("Events are done")
             }
             try await group.next()
         }
-        print("Done")
     }
 }

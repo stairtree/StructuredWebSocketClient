@@ -19,13 +19,13 @@ import FoundationNetworking
 #endif
 
 public protocol MessageTransport {
-    /// The stream of events.
-    /// The stream must be closed once the transport is cancelled, or closed otherwise.
-    var events: AsyncThrowingChannel<WebSocketEvents, Error> { get }
+    /// Connect the transport
+    /// - Returns: An async sequence of events. This includes state changes and messages.
+    func connect() -> AnyAsyncSequence<WebSocketEvent>
     /// Emit an outbound message
     func send(_ message: URLSessionWebSocketTask.Message) async throws
-    func cancel(with closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?)
-    func resume()
+    /// Close the websocket
+    func close(with closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?)
 }
 
 public protocol MessageTransportDelegate: AnyObject {
@@ -43,7 +43,7 @@ public struct MessageMetadata: Sendable {
     /// The uptimenanoseconds the message was received from the network
     public var receivedAt: DispatchTime
     
-    public init(number: Int, receivedAt: DispatchTime) {
+    public init(number: Int, receivedAt: DispatchTime = .now()) {
         self.number = number
         self.receivedAt = receivedAt
     }
@@ -66,3 +66,4 @@ public protocol WebSocketMessageOutboundMiddleware {
     /// Emit an outbound message
     func send(_ message: URLSessionWebSocketTask.Message) async throws -> URLSessionWebSocketTask.Message?
 }
+
