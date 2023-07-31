@@ -96,7 +96,7 @@ public final class URLSessionWebSocketTransport: MessageTransport {
         guard let error else { return }
         
         let nsError = error as NSError
-        let reason = nsError.localizedFailureReason.map { Data($0.utf8) } ?? Data(nsError.localizedDescription.utf8)
+        let reason = nsError.localizedFailureReason ?? nsError.localizedDescription
         logger.debug("""
             WebSocketClient did complete with error (code: \(nsError.code), reason: \(reason))
             """)
