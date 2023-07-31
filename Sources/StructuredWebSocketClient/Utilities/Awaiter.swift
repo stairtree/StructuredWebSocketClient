@@ -21,7 +21,7 @@ public actor Awaiter {
     
     public func trigger() {
         guard case .waiting(waiters: var waiters) = self.state else {
-            fatalError("Exiting in invalid state")
+            fatalError("Triggering in invalid state")
         }
         
         if waiters.isEmpty {
@@ -37,8 +37,8 @@ public actor Awaiter {
         state = .ready
     }
     
-    public func awaitUntilTriggered(_ block: @Sendable @escaping () async throws -> Void) async rethrows {
+    public func awaitUntilTriggered<T>(_ block: @Sendable @escaping () async throws -> T) async rethrows -> T {
         await self.addToWaiters()
-        try await block()
+        return try await block()
     }
 }
