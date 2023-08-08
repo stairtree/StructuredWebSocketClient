@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 import Foundation
+import AsyncHelpers
 import AsyncAlgorithms
 import StructuredWebSocketClient
 #if canImport(FoundationNetworking)

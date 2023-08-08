@@ -13,6 +13,7 @@
 
 import Foundation
 import Logging
+import AsyncHelpers
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
