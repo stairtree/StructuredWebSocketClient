@@ -112,6 +112,10 @@ public final class URLSessionWebSocketTransport: MessageTransport {
 #if canImport(Darwin)
         task.receive { [weak self] result in
             Task { [weak self] in
+                guard self?.task.closeCode == .invalid else {
+                    self?.messages.finish()
+                    return
+                }
                 do {
                     let message = try result.get()
                     await self?.messages.send(message)
