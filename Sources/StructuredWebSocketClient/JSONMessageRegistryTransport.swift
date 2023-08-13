@@ -182,7 +182,7 @@ extension CodingUserInfoKey {
     public static let messageRegister: CodingUserInfoKey = .init(rawValue: "messageRegister")!
 }
 
-public final class MessageRegister {
+public final class MessageRegister: @unchecked Sendable {
     /// Registry for known inbound message names
     private var names: [String: MessageName] = [:]
     /// Lock protecting the message name register
