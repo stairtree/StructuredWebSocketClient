@@ -24,9 +24,11 @@ public final class TestMessageTransport: MessageTransport {
     private var events: AsyncThrowingChannel<WebSocketEvent, Error> = .init()
     private var awaiter: Awaiter = .init()
     private var _initialMessages: [WebSocketEvent]
+    private var _onMessage: (URLSessionWebSocketTask.Message, TestMessageTransport) async throws -> Void
     
-    public init(initialMessages: [URLSessionWebSocketTask.Message] = []) {
+    public init(initialMessages: [URLSessionWebSocketTask.Message] = [], onMessage: @escaping (URLSessionWebSocketTask.Message, TestMessageTransport) async throws -> Void = { _, _ in }) {
         _initialMessages = initialMessages.enumerated().map { .message($1, metadata: .init(number: $0 + 1)) }
+        _onMessage = onMessage
     }
     
     // will wait until state is connected
@@ -37,7 +39,7 @@ public final class TestMessageTransport: MessageTransport {
     }
     
     public func send(_ message: URLSessionWebSocketTask.Message) async throws {
-        // TODO: allow assertions on sent/encoded messages
+        try await _onMessage(message, self)
         // print("Sending: \(String(decoding: try message.data(), as: UTF8.self))")
     }
     
