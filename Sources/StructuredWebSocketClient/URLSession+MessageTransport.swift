@@ -89,7 +89,7 @@ public final class URLSessionWebSocketTransport: MessageTransport {
         WebSocketClient closed connection with code \(closeCode.rawValue), \
         reason: \(reason.map { String(decoding: $0, as: UTF8.self) } ?? "nil")
         """)
-        await self.events.send(.state(.disconnected))
+        await self.events.send(.state(.disconnected(closeCode: closeCode, reason: reason)))
         self.events.finish()
     }
     

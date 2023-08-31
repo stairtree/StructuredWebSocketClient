@@ -25,7 +25,7 @@ public enum WebSocketEvent: Sendable {
 
 public final class WebSocketClient {
     public enum State: Hashable, Sendable {
-        case connected, disconnected
+        case connected, disconnected(closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?)
     }
     
     private let logger: Logger

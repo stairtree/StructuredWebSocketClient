@@ -45,7 +45,7 @@ public final class TestMessageTransport: MessageTransport {
     
     public func close(with closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
         Task {
-            await events.send(.state(.disconnected))
+            await events.send(.state(.disconnected(closeCode: closeCode, reason: reason)))
             self.events.finish()
         }
     }
