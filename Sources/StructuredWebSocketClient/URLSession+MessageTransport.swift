@@ -21,7 +21,7 @@ import FoundationNetworking
 
 public final class URLSessionWebSocketTransport: MessageTransport {
     private let logger: Logger
-    private let task: URLSessionWebSocketTask
+    private let wsTask: URLSessionWebSocketTask
     /// So `URLSessionWebSocketTransport` doesn't have to be an NSObject subclass
     private var delegateHandler: WebSocketTaskDelegateHandler!
     /// Channel will fail if reading a message fails
@@ -31,7 +31,7 @@ public final class URLSessionWebSocketTransport: MessageTransport {
     
     public init(request: URLRequest, urlSession: URLSession = .shared, logger: Logger? = nil) {
         self.logger = logger ?? .init(label: "URLSessionWebSocketTransport")
-        self.task = urlSession.webSocketTask(with: request)
+        self.wsTask = urlSession.webSocketTask(with: request)
         self.delegateHandler = WebSocketTaskDelegateHandler(
             logger: self.logger,
             onOpen: { [weak self] `protocol` in
@@ -45,20 +45,20 @@ public final class URLSessionWebSocketTransport: MessageTransport {
             }
         )
         #if canImport(Darwin)
-        self.task.delegate = self.delegateHandler
+        self.wsTask.delegate = self.delegateHandler
         #endif
     }
     
     public func send(_ message: URLSessionWebSocketTask.Message) async throws {
-        try await task.send(message)
+        try await wsTask.send(message)
     }
     
     public func close(with closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
-        task.cancel(with: closeCode, reason: reason)
+        wsTask.cancel(with: closeCode, reason: reason)
     }
     
     public func connect() -> AnyAsyncSequence<WebSocketEvent> {
-        task.resume()
+        wsTask.resume()
         return events.eraseToAnyAsyncSequence()
     }
     
@@ -105,14 +105,14 @@ public final class URLSessionWebSocketTransport: MessageTransport {
     }
     
     private func readNextMessage() {
-        guard task.closeCode == .invalid else {
+        guard wsTask.closeCode == .invalid else {
             messages.finish()
             return
         }
 #if canImport(Darwin)
-        task.receive { [weak self] result in
+        wsTask.receive { [weak self] result in
             Task { [weak self] in
-                guard self?.task.closeCode == .invalid else {
+                guard self?.wsTask.closeCode == .invalid else {
                     self?.messages.finish()
                     return
                 }
