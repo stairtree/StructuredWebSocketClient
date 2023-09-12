@@ -25,7 +25,7 @@ public final class URLSessionWebSocketTransport: MessageTransport {
     /// So `URLSessionWebSocketTransport` doesn't have to be an NSObject subclass
     private var delegateHandler: WebSocketTaskDelegateHandler!
     /// Will fail if reading a message failed or if the websocket task completes with an error
-    private let events: AsyncThrowingChannel<WebSocketEvent, Error> = .init()
+    private let events: AsyncChannel<WebSocketEvent> = .init()
     
     public init(request: URLRequest, urlSession: URLSession = .shared, logger: Logger? = nil) {
         self.logger = logger ?? .init(label: "URLSessionWebSocketTransport")
@@ -55,9 +55,9 @@ public final class URLSessionWebSocketTransport: MessageTransport {
         wsTask.cancel(with: closeCode, reason: reason)
     }
     
-    public func connect() -> AnyAsyncSequence<WebSocketEvent> {
+    public func connect() -> AsyncChannel<WebSocketEvent> {
         wsTask.resume()
-        return events.eraseToAnyAsyncSequence()
+        return events
     }
     
     // MARK: - Private

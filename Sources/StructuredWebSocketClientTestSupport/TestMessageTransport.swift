@@ -21,7 +21,7 @@ import FoundationNetworking
 
 public final class TestMessageTransport: MessageTransport {
     var messageNumber: Int = 0
-    private var events: AsyncThrowingChannel<WebSocketEvent, Error> = .init()
+    private var events: AsyncChannel<WebSocketEvent> = .init()
     private var awaiter: Awaiter = .init()
     private var _initialMessages: [WebSocketEvent]
     private var _onMessage: (URLSessionWebSocketTask.Message, TestMessageTransport) async throws -> Void
@@ -50,10 +50,15 @@ public final class TestMessageTransport: MessageTransport {
         }
     }
     
-    public func connect() -> AnyAsyncSequence<WebSocketEvent> {
+    public func connect() -> AsyncChannel<WebSocketEvent> {
         // if push is called before connect this will only send the messages after the return
         Task { await awaiter.trigger() }
-        return chain([.state(.connected)].async, _initialMessages.async, events).eraseToAnyAsyncSequence()
+        Task {
+            for await event in chain([.state(.connected)].async, _initialMessages.async, events) {
+                await events.send(event)
+            }
+        }
+        return events
     }
 }
 

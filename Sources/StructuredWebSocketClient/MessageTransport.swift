@@ -22,7 +22,7 @@ import FoundationNetworking
 public protocol MessageTransport {
     /// Connect the transport
     /// - Returns: An async sequence of events. This includes state changes and messages.
-    func connect() -> AnyAsyncSequence<WebSocketEvent>
+    func connect() -> AsyncChannel<WebSocketEvent>
     /// Emit an outbound message
     func send(_ message: URLSessionWebSocketTask.Message) async throws
     /// Close the websocket
