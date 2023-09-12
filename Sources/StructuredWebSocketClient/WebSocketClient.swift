@@ -21,6 +21,7 @@ import FoundationNetworking
 public enum WebSocketEvent: Sendable {
     case state(WebSocketClient.State)
     case message(URLSessionWebSocketTask.Message, metadata: MessageMetadata)
+    case failure(Error)
 }
 
 public final class WebSocketClient {
@@ -67,6 +68,8 @@ public final class WebSocketClient {
                 } else {
                     return .message(m, metadata: meta)
                 }
+            case let .failure(error):
+                return .failure(error)
             }
         }.eraseToAnyAsyncSequence()
     }
@@ -94,6 +97,8 @@ extension WebSocketEvent: CustomDebugStringConvertible {
             return "\(s)"
         case let .message(msg, metadata: meta):
             return "'\(msg)', metadata: \(meta)"
+        case let .failure(error):
+            return "error(\(error))"
         }
     }
 }

@@ -24,8 +24,6 @@ public final class URLSessionWebSocketTransport: MessageTransport {
     private let wsTask: URLSessionWebSocketTask
     /// So `URLSessionWebSocketTransport` doesn't have to be an NSObject subclass
     private var delegateHandler: WebSocketTaskDelegateHandler!
-    /// Channel will fail if reading a message fails
-    private var messages: AsyncThrowingChannel<URLSessionWebSocketTask.Message, Error> = .init()
     /// Will fail if reading a message failed or if the websocket task completes with an error
     private let events: AsyncThrowingChannel<WebSocketEvent, Error> = .init()
     
@@ -71,17 +69,6 @@ public final class URLSessionWebSocketTransport: MessageTransport {
         // suspend until someone does.
         // We should be able to do this in the initializer, as nobody consumes values anyway
         self.readNextMessage()
-        do {
-            var count = 1
-            for try await message in messages {
-                let meta = MessageMetadata(number: count)
-                await self.events.send(.message(message, metadata: meta))
-                count += 1
-            }
-        } catch {
-            logger.error("WebSocketClient event error: \(error)")
-            self.events.fail(error)
-        }
     }
     
     private func onClose(closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) async {
@@ -101,27 +88,28 @@ public final class URLSessionWebSocketTransport: MessageTransport {
         logger.debug("""
             WebSocketClient did complete with error (code: \(nsError.code), reason: \(reason))
             """)
-        self.events.fail(nsError)
+        await self.events.send(.failure(nsError))
     }
     
     private func readNextMessage() {
         guard wsTask.closeCode == .invalid else {
-            messages.finish()
             return
         }
 #if canImport(Darwin)
         wsTask.receive { [weak self] result in
             Task { [weak self] in
                 guard self?.wsTask.closeCode == .invalid else {
-                    self?.messages.finish()
                     return
                 }
                 do {
+                    var count = 1
                     let message = try result.get()
-                    await self?.messages.send(message)
+                    let meta = MessageMetadata(number: count)
+                    await self?.events.send(.message(message, metadata: meta))
+                    count += 1
                     self?.readNextMessage()
                 } catch {
-                    self?.messages.fail(error)
+                    await self?.events.send(.failure(error))
                 }
             }
         }
