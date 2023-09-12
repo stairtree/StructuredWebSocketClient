@@ -30,15 +30,12 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-log.git", .upToNextMajor(from: "1.5.2")),
         // AsyncChannel with backpressure
         .package(url: "https://github.com/apple/swift-async-algorithms", branch: "main"),
-        // Helpers for async/await
-        .package(url: "https://github.com/stairtree/async-helpers.git", branch: "main"),
     ],
     targets: [
         .target(
             name: "StructuredWebSocketClient",
             dependencies: [
                 .product(name: "Logging", package: "swift-log"),
-                .product(name: "AsyncHelpers", package: "async-helpers"),
                 .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
             ]),
         .target(

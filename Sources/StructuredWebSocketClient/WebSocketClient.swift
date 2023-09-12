@@ -13,7 +13,7 @@
 
 import Foundation
 import Logging
-import AsyncHelpers
+import AsyncAlgorithms
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
@@ -50,7 +50,7 @@ public final class WebSocketClient {
         self.logger.trace("♻️ Deinit of WebSocketClient")
     }
     
-    public func connect() -> AnyAsyncSequence<WebSocketEvent> {
+    public func connect() ->  AsyncCompactMapSequence<AsyncChannel<WebSocketEvent>, WebSocketEvent> {
         self.transport.connect().compactMap { e -> WebSocketEvent? in
             switch e {
             case let .state(s):
@@ -58,12 +58,18 @@ public final class WebSocketClient {
             case let .message(m, metadata: meta):
                 // pipe message through middleware
                 if let middleware = self.inboundMiddleware {
-                    let handled = try await middleware.handle(m, metadata: meta)
-                    switch handled {
-                    case .handled:
-                        return nil
-                    case let .unhandled(unhandled):
-                        return.message(unhandled, metadata: meta)
+                    do {
+                        let handled = try await middleware.handle(m, metadata: meta)
+                        switch handled {
+                        case .handled:
+                            return nil
+                        case let .unhandled(unhandled):
+                            return.message(unhandled, metadata: meta)
+                        }
+                    } catch {
+                        // In case the middleware throws when handling the message
+                        // We could also just pretend it was unhandled.
+                        return .failure(error)
                     }
                 } else {
                     return .message(m, metadata: meta)
@@ -71,7 +77,7 @@ public final class WebSocketClient {
             case let .failure(error):
                 return .failure(error)
             }
-        }.eraseToAnyAsyncSequence()
+        }
     }
     
     public func disconnect(reason: String?) async {

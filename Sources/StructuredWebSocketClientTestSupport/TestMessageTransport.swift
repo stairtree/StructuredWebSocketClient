@@ -12,7 +12,6 @@
 //===----------------------------------------------------------------------===//
 
 import Foundation
-import AsyncHelpers
 import AsyncAlgorithms
 import StructuredWebSocketClient
 #if canImport(FoundationNetworking)
@@ -21,8 +20,8 @@ import FoundationNetworking
 
 public final class TestMessageTransport: MessageTransport {
     var messageNumber: Int = 0
+    private var _events: AsyncChannel<WebSocketEvent> = .init()
     private var events: AsyncChannel<WebSocketEvent> = .init()
-    private var awaiter: Awaiter = .init()
     private var _initialMessages: [WebSocketEvent]
     private var _onMessage: (URLSessionWebSocketTask.Message, TestMessageTransport) async throws -> Void
     
@@ -31,32 +30,27 @@ public final class TestMessageTransport: MessageTransport {
         _onMessage = onMessage
     }
     
-    // will wait until state is connected
     public func push(_ event: WebSocketEvent) async {
-        await awaiter.awaitUntilTriggered {
-            await self.events.send(event)
-        }
+        await self._events.send(event)
     }
     
     public func send(_ message: URLSessionWebSocketTask.Message) async throws {
         try await _onMessage(message, self)
-        // print("Sending: \(String(decoding: try message.data(), as: UTF8.self))")
     }
     
     public func close(with closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
         Task {
-            await events.send(.state(.disconnected(closeCode: closeCode, reason: reason)))
-            self.events.finish()
+            await _events.send(.state(.disconnected(closeCode: closeCode, reason: reason)))
+            self._events.finish()
         }
     }
     
     public func connect() -> AsyncChannel<WebSocketEvent> {
-        // if push is called before connect this will only send the messages after the return
-        Task { await awaiter.trigger() }
-        Task {
-            for await event in chain([.state(.connected)].async, _initialMessages.async, events) {
-                await events.send(event)
+        Task { [unowned self] in
+            for await event in chain([.state(.connected)].async, self._initialMessages.async, self._events) {
+                await self.events.send(event)
             }
+            self.events.finish()
         }
         return events
     }

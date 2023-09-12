@@ -13,7 +13,6 @@
 
 import Foundation
 import Logging
-import AsyncHelpers
 import AsyncAlgorithms
 #if canImport(FoundationNetworking)
 import FoundationNetworking
@@ -52,6 +51,12 @@ public final class URLSessionWebSocketTransport: MessageTransport {
     }
     
     public func close(with closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
+        // If the task is already closed, we need to call onClose, as that is
+        // the only way the events channel is finished.
+        guard wsTask.closeCode == .invalid else {
+            Task { await self.onClose(closeCode: closeCode, reason: reason) }
+            return
+        }
         wsTask.cancel(with: closeCode, reason: reason)
     }
     
@@ -89,6 +94,11 @@ public final class URLSessionWebSocketTransport: MessageTransport {
             WebSocketClient did complete with error (code: \(nsError.code), reason: \(reason))
             """)
         await self.events.send(.failure(nsError))
+        // If the task is already closed, we need to call onClose, as that is
+        // the only way the events channel is finished.
+        if wsTask.closeCode != .invalid {
+            await self.onClose(closeCode: .abnormalClosure, reason: Data(reason.utf8))
+        }
     }
     
     private func readNextMessage() {
@@ -110,6 +120,7 @@ public final class URLSessionWebSocketTransport: MessageTransport {
                     self?.readNextMessage()
                 } catch {
                     await self?.events.send(.failure(error))
+                    await self?.onClose(closeCode: .abnormalClosure, reason: Data(error.localizedDescription.utf8))
                 }
             }
         }
