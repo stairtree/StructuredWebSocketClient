@@ -73,7 +73,7 @@ public final class URLSessionWebSocketTransport: MessageTransport {
         // the connected event. If no one is consuming events yet, we will
         // suspend until someone does.
         // We should be able to do this in the initializer, as nobody consumes values anyway
-        self.readNextMessage()
+        self.readNextMessage(1)
     }
     
     private func onClose(closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) async {
@@ -101,7 +101,7 @@ public final class URLSessionWebSocketTransport: MessageTransport {
         }
     }
     
-    private func readNextMessage() {
+    private func readNextMessage(_ number: Int) {
         guard wsTask.closeCode == .invalid else {
             return
         }
@@ -112,12 +112,10 @@ public final class URLSessionWebSocketTransport: MessageTransport {
                     return
                 }
                 do {
-                    var count = 1
                     let message = try result.get()
-                    let meta = MessageMetadata(number: count)
+                    let meta = MessageMetadata(number: number)
                     await self?.events.send(.message(message, metadata: meta))
-                    count += 1
-                    self?.readNextMessage()
+                    self?.readNextMessage(number + 1)
                 } catch {
                     await self?.events.send(.failure(error))
                     await self?.onClose(closeCode: .abnormalClosure, reason: Data(error.localizedDescription.utf8))
