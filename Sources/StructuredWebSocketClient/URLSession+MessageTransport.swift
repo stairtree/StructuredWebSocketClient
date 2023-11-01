@@ -117,6 +117,7 @@ public final class URLSessionWebSocketTransport: MessageTransport {
                     await self?.events.send(.message(message, metadata: meta))
                     self?.readNextMessage(number + 1)
                 } catch {
+                    self?.logger.error("\(error)")
                     await self?.events.send(.failure(error))
                     await self?.onClose(closeCode: .abnormalClosure, reason: Data(error.localizedDescription.utf8))
                 }
