@@ -20,11 +20,11 @@ import FoundationNetworking
 public final class InterceptingTransport: WebSocketMessageInboundMiddleware {
     
     public let nextIn: WebSocketMessageInboundMiddleware?
-    let _handle: (_ message: URLSessionWebSocketTask.Message) async throws -> MessageHandling
+    let _handle: @Sendable (_ message: URLSessionWebSocketTask.Message) async throws -> MessageHandling
     
     public init(
         next: WebSocketMessageInboundMiddleware?,
-        handle: @escaping (_ message: URLSessionWebSocketTask.Message) async throws -> MessageHandling
+        handle: @escaping @Sendable (_ message: URLSessionWebSocketTask.Message) async throws -> MessageHandling
     ) {
         self.nextIn = next
         self._handle = handle

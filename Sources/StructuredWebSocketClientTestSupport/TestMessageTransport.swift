@@ -18,14 +18,13 @@ import StructuredWebSocketClient
 import FoundationNetworking
 #endif
 
-public final class TestMessageTransport: MessageTransport {
-    var messageNumber: Int = 0
-    private var _events: AsyncChannel<WebSocketEvent> = .init()
-    private var events: AsyncChannel<WebSocketEvent> = .init()
-    private var _initialMessages: [WebSocketEvent]
-    private var _onMessage: (URLSessionWebSocketTask.Message, TestMessageTransport) async throws -> Void
+public final class TestMessageTransport: MessageTransport, Sendable {
+    private let _events: AsyncChannel<WebSocketEvent> = .init()
+    private let events: AsyncChannel<WebSocketEvent> = .init()
+    private let _initialMessages: [WebSocketEvent]
+    private let _onMessage: @Sendable (URLSessionWebSocketTask.Message, TestMessageTransport) async throws -> Void
     
-    public init(initialMessages: [URLSessionWebSocketTask.Message] = [], onMessage: @escaping (URLSessionWebSocketTask.Message, TestMessageTransport) async throws -> Void = { _, _ in }) {
+    public init(initialMessages: [URLSessionWebSocketTask.Message] = [], onMessage: @escaping @Sendable (URLSessionWebSocketTask.Message, TestMessageTransport) async throws -> Void = { _, _ in }) {
         _initialMessages = initialMessages.enumerated().map { .message($1, metadata: .init(number: $0 + 1)) }
         _onMessage = onMessage
     }
@@ -40,7 +39,7 @@ public final class TestMessageTransport: MessageTransport {
     
     public func close(with closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
         Task {
-            await _events.send(.state(.disconnected(closeCode: closeCode, reason: reason)))
+            await self._events.send(.state(.disconnected(closeCode: closeCode, reason: reason)))
             self._events.finish()
         }
     }
@@ -52,11 +51,11 @@ public final class TestMessageTransport: MessageTransport {
             }
             self.events.finish()
         }
-        return events
+        return self.events
     }
 }
 
-public final class NoOpMiddleWare: WebSocketMessageInboundMiddleware, WebSocketMessageOutboundMiddleware {
+public final class NoOpMiddleWare: WebSocketMessageInboundMiddleware, WebSocketMessageOutboundMiddleware, Sendable {
     public var nextIn: WebSocketMessageInboundMiddleware? { nil }
     public var nextOut: WebSocketMessageOutboundMiddleware? { nil }
 

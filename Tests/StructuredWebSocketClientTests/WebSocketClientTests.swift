@@ -16,40 +16,40 @@ import Logging
 import StructuredWebSocketClientTestSupport
 import StructuredWebSocketClient
 
-final class WebSocketClientTests: XCTestCase {
+class WebSocketClientTests: XCTestCase {
+    override class func setUp() {
+        XCTAssert(isLoggingConfigured)
+    }
+    
     func testOpen() async throws {
-        LoggingSystem.bootstrap {
-            var handler = StreamLogHandler.standardOutput(label: $0)
-            handler.logLevel = .trace
-            return handler
-        }
         let tt = TestMessageTransport(initialMessages: [
             // it's not guaranteed that there aren't messages put inbetween
             .string("initial 1 \(Date())"), .string("initial 2 \(Date())")
         ])
         print("Creating client")
+        let logger = Logger(label: "Test")
         let client = WebSocketClient(
             inboundMiddleware: NoOpMiddleWare(),
             outboundMiddleware: NoOpMiddleWare(),
             transport: tt,
-            logger: Logger(label: "Test")
+            logger: logger
         )
-        print("Awaiting group")
+        logger.debug("Awaiting group")
         try await withThrowingTaskGroup(of: Void.self) { group in
             group.addTask {
-                print("Pushing message 3")
+                logger.debug("Pushing message 3")
                 await tt.push(.message(.string("Hoy \(Date())"), metadata: .init(number: 3)))
                 try await Task.sleep(nanoseconds: 1 * NSEC_PER_SEC)
-                print("Pushing message 4")
+                logger.debug("Pushing message 4")
                 await tt.push(.message(.string("Hoy again \(Date())"), metadata: .init(number: 4)))
                 tt.close(with: .goingAway, reason: nil)
             }
             group.addTask {
-                print("Connecting")
+                logger.debug("Connecting")
                 for try await event in client.connect() {
-                    print(event)
+                    logger.debug("\(event)")
                 }
-                print("Events are done")
+                logger.debug("Events are done")
             }
             try await group.next()
         }
@@ -58,8 +58,10 @@ final class WebSocketClientTests: XCTestCase {
     func testEchoServer() async throws {
         // Postman's echo server
         let request = URLRequest(url: .init(string: "wss://ws.postman-echo.com/raw")!)
-        let client = WebSocketClient(inboundMiddleware: nil, outboundMiddleware: nil, transport: URLSessionWebSocketTransport(request: request))
+        let logger = Logger(label: "Test")
+        let client = await WebSocketClient(inboundMiddleware: nil, outboundMiddleware: nil, transport: URLSessionWebSocketTransport(request: request), logger: logger)
         let outMsg = "Hi there"
+        let expectation = XCTestExpectation(description: "message received")
         
         try await withThrowingTaskGroup(of: Void.self) { group in
             group.addTask {
@@ -70,11 +72,27 @@ final class WebSocketClientTests: XCTestCase {
                     if case let .message(message, metadata) = event {
                         XCTAssertEqual(try message.string(), outMsg)
                         XCTAssertEqual(metadata.number, 1)
+                        logger.trace("message \(metadata.number)")
+                        expectation.fulfill()
                         await client.disconnect(reason: "done testing")
                     }
                 }
             }
             try await group.next()
         }
+        await self.fulfillment(of: [expectation])
     }
 }
+
+func env(_ name: String) -> String? {
+    return ProcessInfo.processInfo.environment[name]
+}
+
+let isLoggingConfigured: Bool = {
+    LoggingSystem.bootstrap { label in
+        var handler = StreamLogHandler.standardOutput(label: label)
+        handler.logLevel = env("LOG_LEVEL").flatMap { Logger.Level(rawValue: $0) } ?? .trace
+        return handler
+    }
+    return true
+}()

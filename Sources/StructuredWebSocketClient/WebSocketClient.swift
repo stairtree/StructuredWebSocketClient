@@ -24,7 +24,7 @@ public enum WebSocketEvent: Sendable {
     case failure(Error)
 }
 
-public final class WebSocketClient {
+public final class WebSocketClient: Sendable {
     public enum State: Hashable, Sendable {
         case connected, disconnected(closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?)
     }
@@ -46,18 +46,17 @@ public final class WebSocketClient {
         self.logger = logger ?? Logger(label: "WebSocketClient")
     }
     
-    deinit {
-        self.logger.trace("♻️ Deinit of WebSocketClient")
-    }
-    
-    public func connect() ->  AsyncCompactMapSequence<AsyncChannel<WebSocketEvent>, WebSocketEvent> {
-        self.transport.connect().compactMap { e -> WebSocketEvent? in
+    public func connect() -> AsyncCompactMapSequence<AsyncChannel<WebSocketEvent>, WebSocketEvent> {
+        let inboundMiddleware = self.inboundMiddleware
+        let logger = self.logger
+        
+        return self.transport.connect().compactMap { e -> WebSocketEvent? in
             switch e {
             case let .state(s):
                 return .state(s)
             case let .message(m, metadata: meta):
                 // pipe message through middleware
-                if let middleware = self.inboundMiddleware {
+                if let middleware = inboundMiddleware {
                     do {
                         let handled = try await middleware.handle(m, metadata: meta)
                         switch handled {
@@ -67,7 +66,7 @@ public final class WebSocketClient {
                             return.message(unhandled, metadata: meta)
                         }
                     } catch {
-                        self.logger.error("\(error)")
+                        logger.error("\(error)")
                         // In case the middleware throws when handling the message
                         // We could also just pretend it was unhandled.
                         return .failure(error)
@@ -76,24 +75,24 @@ public final class WebSocketClient {
                     return .message(m, metadata: meta)
                 }
             case let .failure(error):
-                self.logger.error("\(error)")
+                logger.error("\(error)")
                 return .failure(error)
             }
         }
     }
     
     public func disconnect(reason: String?) async {
-        transport.close(with: .normalClosure, reason: Data(reason?.utf8 ?? "Closing connection".utf8))
+        self.transport.close(with: .normalClosure, reason: Data(reason?.utf8 ?? "Closing connection".utf8))
     }
     
     /// Pass the message through all the middleware, and then send it via the transport (if it hasn't been swallowed by middleware)
     public func sendMessage(_ message: URLSessionWebSocketTask.Message) async throws {
         if let outboundMiddleware {
             if let msg = try await outboundMiddleware.send(message) {
-                try await transport.send(msg)
+                try await self.transport.send(msg)
             }
         } else {
-            try await transport.send(message)
+            try await self.transport.send(message)
         }
     }
 }

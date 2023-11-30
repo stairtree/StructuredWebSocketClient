@@ -18,7 +18,7 @@ import AsyncAlgorithms
 import FoundationNetworking
 #endif
 
-public protocol MessageTransport {
+public protocol MessageTransport: Sendable {
     /// Connect the transport
     /// - Returns: An async sequence of events. This includes state changes and messages.
     func connect() -> AsyncChannel<WebSocketEvent>
@@ -28,20 +28,15 @@ public protocol MessageTransport {
     func close(with closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?)
 }
 
-public protocol MessageTransportDelegate: AnyObject {
-    func didOpenWithProtocol(_ protocol: String?)
-    func didCloseWith(closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?)
-}
-
-public enum MessageHandling {
+public enum MessageHandling: Sendable {
     case handled, unhandled(URLSessionWebSocketTask.Message)
 }
 
 public struct MessageMetadata: Sendable {
     /// The increasing number of the message
-    public var number: Int
+    public let number: Int
     /// The uptimenanoseconds the message was received from the network
-    public var receivedAt: DispatchTime
+    public let receivedAt: DispatchTime
     
     public init(number: Int, receivedAt: DispatchTime = .now()) {
         self.number = number
@@ -49,7 +44,7 @@ public struct MessageMetadata: Sendable {
     }
 }
 
-public protocol WebSocketMessageInboundMiddleware {
+public protocol WebSocketMessageInboundMiddleware: Sendable {
     /// The next middleware in the chain
     var nextIn: WebSocketMessageInboundMiddleware? { get }
     /// Handle an incoming message
@@ -60,7 +55,7 @@ public protocol WebSocketMessageInboundMiddleware {
     func handle(_ received: URLSessionWebSocketTask.Message, metadata: MessageMetadata) async throws -> MessageHandling
 }
 
-public protocol WebSocketMessageOutboundMiddleware {
+public protocol WebSocketMessageOutboundMiddleware: Sendable {
     /// The next middleware on the way out
     var nextOut: WebSocketMessageOutboundMiddleware? { get }
     /// Emit an outbound message
