@@ -1,4 +1,4 @@
-// swift-tools-version:5.7
+// swift-tools-version:5.9
 //===----------------------------------------------------------------------===//
 //
 // This source file is part of the StructuredWebSocketClient open source project
@@ -16,20 +16,21 @@ import PackageDescription
 
 let package = Package(
     name: "StructuredWebSocketClient",
-    platforms: [.iOS(.v15), .macOS(.v12), .watchOS(.v8), .tvOS(.v15)],
+    platforms: [
+        .macOS(.v12),
+        .iOS(.v15),
+        .watchOS(.v8),
+        .tvOS(.v15),
+    ],
     products: [
-        .library(
-            name: "StructuredWebSocketClient",
-            targets: ["StructuredWebSocketClient"]),
-        .library(
-            name: "StructuredWebSocketClientTestSupport",
-            targets: ["StructuredWebSocketClientTestSupport"]),
+        .library(name: "StructuredWebSocketClient", targets: ["StructuredWebSocketClient"]),
+        .library(name: "StructuredWebSocketClientTestSupport", targets: ["StructuredWebSocketClientTestSupport"]),
     ],
     dependencies: [
         // Swift logging API
-        .package(url: "https://github.com/apple/swift-log.git", .upToNextMajor(from: "1.5.2")),
+        .package(url: "https://github.com/apple/swift-log.git", from: "1.5.2"),
         // AsyncChannel with backpressure
-        .package(url: "https://github.com/apple/swift-async-algorithms", branch: "main"),
+        .package(url: "https://github.com/apple/swift-async-algorithms", from: "1.0.0-beta.1"),
     ],
     targets: [
         .target(
@@ -37,15 +38,23 @@ let package = Package(
             dependencies: [
                 .product(name: "Logging", package: "swift-log"),
                 .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
-            ]),
+            ],
+            swiftSettings: [.enableExperimentalFeature("StrictConcurrency=complete")]
+        ),
         .target(
             name: "StructuredWebSocketClientTestSupport",
-            dependencies: [.target(name: "StructuredWebSocketClient")]),
+            dependencies: [
+                .target(name: "StructuredWebSocketClient"),
+            ],
+            swiftSettings: [.enableExperimentalFeature("StrictConcurrency=complete")]
+        ),
         .testTarget(
             name: "StructuredWebSocketClientTests",
             dependencies: [
                 .target(name: "StructuredWebSocketClient"),
                 .target(name: "StructuredWebSocketClientTestSupport"),
-            ]),
+            ],
+            swiftSettings: [.enableExperimentalFeature("StrictConcurrency=complete")]
+        ),
     ]
 )
