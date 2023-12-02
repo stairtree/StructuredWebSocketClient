@@ -7,11 +7,11 @@
 </a>
 
 <a href="https://github.com/stairtree/StructuredWebSocketClient/actions/workflows/test.yml">
-<img src="https://img.shields.io/github/actions/workflow/status/stairtree/StructuredWebScoketClient/test.yml?event=push&style=plastic&logo=github&label=tests&logoColor=%23ccc" alt="CI">
+<img src="https://img.shields.io/github/actions/workflow/status/stairtree/StructuredWebSocketClient/test.yml?event=push&style=plastic&logo=github&label=tests&logoColor=%23ccc" alt="CI">
 </a>
 
 <a href="https://codecov.io/gh/stairtree/StructuredWebSocketClient">
-<img src="https://img.shields.io/codecov/c/gh/stairtree/StructuredWebSocketClient?style=plastic&logo=codecov&label=codecov&token=MD69L97AOO">
+<img src="https://img.shields.io/codecov/c/gh/stairtree/StructuredWebSocketClient?style=plastic&logo=codecov&label=codecov&token=JV5WJIYWHG">
 </a>
 
 <a href="https://swift.org">
