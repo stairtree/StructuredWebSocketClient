@@ -67,19 +67,19 @@ public final class JSONMessageRegistryTransport<Message: MessageType>: WebSocket
 
 extension JSONMessageRegistryTransport {
     public func unregister(_ name: MessageName) {
-        messageRegister.unregister(name)
+        self.messageRegister.unregister(name)
     }
     
     public func unregisterAll() {
-        messageRegister.unregisterAll()
+        self.messageRegister.unregisterAll()
     }
     
     public func register(_ name: MessageName) {
-        messageRegister.register(name)
+        self.messageRegister.register(name)
     }
     
     public func name(for value: String) -> MessageName? {
-        messageRegister.name(for: value)
+        self.messageRegister.name(for: value)
     }
 }
 
@@ -193,37 +193,33 @@ public final class MessageRegister: @unchecked Sendable {
     /// Lock protecting the message name register
     private let lock: NSLock = .init()
     /// - Warning: For testing only
-    internal var registeredNames: AnyCollection<MessageName> { .init(names.values) }
+    internal var registeredNames: AnyCollection<MessageName> { .init(self.names.values) }
     
     public init() {}
     
     public func unregister(_ name: MessageName) {
-        lock.lock()
-        if self.names[name.value] != nil {
-            self.names[name.value] = nil
+        self.lock.withLock {
+            _ = self.names.removeValue(forKey: name.value)
         }
-        lock.unlock()
     }
     
     public func unregisterAll() {
-        lock.lock()
-        self.names = [:]
-        lock.unlock()
+        self.lock.withLock {
+            self.names = [:]
+        }
     }
     
     public func register(_ name: MessageName) {
-        lock.lock()
-        if self.names[name.value] == nil {
-            self.names[name.value] = name
+        self.lock.withLock {
+            if self.names[name.value] == nil {
+                self.names[name.value] = name
+            }
         }
-        lock.unlock()
     }
     
     public func name(for value: String) -> MessageName? {
-        let name: MessageName?
-        lock.lock()
-        name = self.names[value]
-        lock.unlock()
-        return name
+        self.lock.withLock {
+            self.names[value]
+        }
     }
 }
