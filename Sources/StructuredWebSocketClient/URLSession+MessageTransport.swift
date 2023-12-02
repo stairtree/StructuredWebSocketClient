@@ -59,24 +59,46 @@ extension OperationQueue {
 public actor URLSessionWebSocketTransport: MessageTransport, SimpleURLSessionTaskDelegate {
     /// Force the actor's methods to run on the URL session's delegate operation queue.
     public nonisolated var unownedExecutor: UnownedSerialExecutor {
-        self.session.delegateQueue.asUnownedSerialExecutor()
+        self.delegateQueue.asUnownedSerialExecutor()
     }
     
-    private nonisolated let session: URLSession
+    private nonisolated let delegateQueue: OperationQueue
     private let logger: Logger
+    #if canImport(Darwin)
     private let wsTask: URLSessionWebSocketTask
+    #else
+    /// We need to be able to have not yet initialized the task when dealing with Linux's weird URLSession-ness, so we
+    /// blatantly trick the compiler into not complaining.
+    private final class TaskSetupWorkaround: @unchecked Sendable {
+        var task: URLSessionWebSocketTask!
+        func send(_ message: URLSessionWebSocketTask.Message) async throws { try await self.task.send(message) }
+        var closeCode: URLSessionWebSocketTask.CloseCode { self.task.closeCode }
+        func cancel(with code: URLSessionWebSocketTask.CloseCode, reason: Data?) { self.task.cancel(with: code, reason: reason) }
+        func resume() { self.task.resume() }
+        var state: URLSessionTask.State { self.task.state }
+        func receive() async throws -> URLSessionWebSocketTask.Message { try await self.task.receive() }
+        init() {}
+    }
+    private let wsTask: TaskSetupWorkaround = .init()
+    #endif
     private var delegateHandler: URLSessionDelegateAdapter<URLSessionWebSocketTransport>?
     private var isAlreadyClosed = false
     /// Will fail if reading a message failed or if the websocket task completes with an error
     private let events: AsyncChannel<WebSocketEvent> = .init()
     
     public init(request: URLRequest, urlSession: URLSession = .shared, logger: Logger? = nil) async {
-        self.session = urlSession
         self.logger = logger ?? .init(label: "URLSessionWebSocketTransport")
-        self.wsTask = urlSession.webSocketTask(with: request)
-        self.delegateHandler = .init(adapting: self)
+
         #if canImport(Darwin)
+        self.wsTask = urlSession.webSocketTask(with: request)
+        self.delegateQueue = urlSession.delegateQueue
+        self.delegateHandler = URLSessionDelegateAdapter(adapting: self)
         self.wsTask.delegate = self.delegateHandler
+        #else
+        self.delegateQueue = urlSession.delegateQueue
+        self.delegateHandler = URLSessionDelegateAdapter(adapting: self)
+        let session = URLSession(configuration: urlSession.configuration, delegate: self.delegateHandler, delegateQueue: urlSession.delegateQueue)
+        self.wsTask.task = session.webSocketTask(with: request)
         #endif
     }
     
@@ -154,7 +176,6 @@ public actor URLSessionWebSocketTransport: MessageTransport, SimpleURLSessionTas
     }
     
     private func readNextMessage(_ number: Int) async {
-#if canImport(Darwin)
         switch self.wsTask.state {
         case .running, .suspended: break
         case .canceling, .completed: return
@@ -167,7 +188,7 @@ public actor URLSessionWebSocketTransport: MessageTransport, SimpleURLSessionTas
             let message = try await self.wsTask.receive()
             let meta = MessageMetadata(number: number)
             
-            self.logger.trace("WebSocketClient did receive message with number \(number) \(String(reflecting: message))")
+            self.logger.trace("WebSocketClient did receive message with number \(number) \(message.loggingDescription)")
             await self.events.send(.message(message, metadata: meta))
             Task { await self.readNextMessage(number + 1) }
         } catch {
@@ -175,10 +196,19 @@ public actor URLSessionWebSocketTransport: MessageTransport, SimpleURLSessionTas
                 // When the task finishes normally, we'll get an ENOTCONN error; suppress it.
                 return
             }
-            self.logger.error("Receive failure: \(error)")
+            self.logger.error("Receive failure: \(String(reflecting: error))")
             await self.events.send(.failure(error))
             await self.onClose(closeCode: .abnormalClosure, reason: Data(error.localizedDescription.utf8))
         }
-#endif
+    }
+}
+
+extension URLSessionWebSocketTask.Message {
+    package var loggingDescription: String {
+        switch self {
+        case .data(let data): "data(\(String(reflecting: data)))"
+        case .string(let string): "\"\(string)\""
+        @unknown default: "unknown message type"
+        }
     }
 }

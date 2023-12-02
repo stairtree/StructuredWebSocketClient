@@ -36,9 +36,9 @@ public struct MessageMetadata: Sendable {
     /// The increasing number of the message
     public let number: Int
     /// The uptimenanoseconds the message was received from the network
-    public let receivedAt: DispatchTime
+    public let receivedAt: Date
     
-    public init(number: Int, receivedAt: DispatchTime = .now()) {
+    public init(number: Int, receivedAt: Date = .now) {
         self.number = number
         self.receivedAt = receivedAt
     }
@@ -61,4 +61,3 @@ public protocol WebSocketMessageOutboundMiddleware: Sendable {
     /// Emit an outbound message
     func send(_ message: URLSessionWebSocketTask.Message) async throws -> URLSessionWebSocketTask.Message?
 }
-

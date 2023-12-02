@@ -110,6 +110,16 @@ extension WebSocketEvent: CustomDebugStringConvertible {
     }
 }
 
+extension WebSocketClient.State: CustomDebugStringConvertible {
+    public var debugDescription: String {
+        switch self {
+        case .connected: "connected"
+        case let .disconnected(closeCode, reason):
+            "disconnected(code: \(closeCode.rawValue), reason: \(reason.map { String(decoding: $0, as: UTF8.self) } ?? "<none>"))"
+        }
+    }
+}
+
 public enum WebSocketError: Error {
     case unknownMessageFormat
     case notUTF8String
