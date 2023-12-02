@@ -15,13 +15,36 @@ import Foundation
 import Logging
 import AsyncAlgorithms
 #if canImport(FoundationNetworking)
-import FoundationNetworking
+@preconcurrency import FoundationNetworking
 #endif
 
-extension OperationQueue: SerialExecutor {
+/// On Linux, we need to fake a Sendable conformance for OperationQueue.
+#if !canImport(Darwin)
+#if $RetroactiveAttribute
+extension OperationQueue: @unchecked @retroactive Sendable {}
+#else
+extension OperationQueue: @unchecked Sendable {}
+#endif
+#endif
+
+/// Mark the SerialExecutor conformance retroactive on all platforms.
+#if $RetroactiveAttribute
+extension OperationQueue: @retroactive SerialExecutor {}
+#else
+extension OperationQueue: SerialExecutor {}
+#endif
+
+extension OperationQueue {
+    #if canImport(Darwin)
     public func enqueue(_ job: UnownedJob) {
         self.addOperation { job.runSynchronously(on: self.asUnownedSerialExecutor()) }
     }
+    #else
+    public func enqueue(_ job: consuming ExecutorJob) {
+        let unconsumingJob = UnownedJob(job)
+        self.addOperation { unconsumingJob.runSynchronously(on: self.asUnownedSerialExecutor()) }
+    }
+    #endif
     
     public func asUnownedSerialExecutor() -> UnownedSerialExecutor {
         .init(ordinary: self)
@@ -135,7 +158,9 @@ public actor URLSessionWebSocketTransport: MessageTransport, SimpleURLSessionTas
         switch self.wsTask.state {
         case .running, .suspended: break
         case .canceling, .completed: return
+        #if canImport(Darwin)
         @unknown default: fatalError()
+        #endif
         }
 
         do {

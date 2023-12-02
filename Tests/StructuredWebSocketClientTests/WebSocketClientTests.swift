@@ -15,6 +15,10 @@ import XCTest
 import Logging
 import StructuredWebSocketClientTestSupport
 import StructuredWebSocketClient
+import Foundation
+#if canImport(FoundationNetworking) && !canImport(Darwin)
+@preconcurrency import FoundationNetworking
+#endif
 
 class WebSocketClientTests: XCTestCase {
     override class func setUp() {
@@ -39,7 +43,11 @@ class WebSocketClientTests: XCTestCase {
             group.addTask {
                 logger.debug("Pushing message 3")
                 await tt.push(.message(.string("Hoy \(Date())"), metadata: .init(number: 3)))
-                try await Task.sleep(nanoseconds: 1 * NSEC_PER_SEC)
+                if #available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, *) {
+                    try await Task.sleep(for: .seconds(1), clock: SuspendingClock())
+                } else {
+                    try await Task.sleep(nanoseconds: 1_000_000_000) // NSEC_PER_SEC is harder to get at on Linux
+                }
                 logger.debug("Pushing message 4")
                 await tt.push(.message(.string("Hoy again \(Date())"), metadata: .init(number: 4)))
                 tt.close(with: .goingAway, reason: nil)
@@ -56,9 +64,10 @@ class WebSocketClientTests: XCTestCase {
     }
     
     func testEchoServer() async throws {
+        let logger = Logger(label: "Test")
+
         // Postman's echo server
         let request = URLRequest(url: .init(string: "wss://ws.postman-echo.com/raw")!)
-        let logger = Logger(label: "Test")
         let client = await WebSocketClient(inboundMiddleware: nil, outboundMiddleware: nil, transport: URLSessionWebSocketTransport(request: request), logger: logger)
         let outMsg = "Hi there"
         let expectation = XCTestExpectation(description: "message received")
@@ -80,7 +89,11 @@ class WebSocketClientTests: XCTestCase {
             }
             try await group.next()
         }
-        await self.fulfillment(of: [expectation])
+        #if canImport(Darwin) || swift(>=5.10)
+        await self.fulfillment(of: [expectation], timeout: 5.0)
+        #else
+        XCTAssertEqual(XCTWaiter().wait(for: [expectation], timeout: 5.0), .completed)
+        #endif
     }
 }
 

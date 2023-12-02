@@ -15,7 +15,7 @@ import Foundation
 import Logging
 import AsyncAlgorithms
 #if canImport(FoundationNetworking)
-import FoundationNetworking
+@preconcurrency import FoundationNetworking
 #endif
 
 public enum WebSocketEvent: Sendable {
@@ -122,8 +122,10 @@ extension URLSessionWebSocketTask.Message {
             return data
         case let .string(text):
             return Data(text.utf8)
+        #if canImport(Darwin)
         @unknown default:
             throw WebSocketError.unknownMessageFormat
+        #endif
         }
     }
     
@@ -137,8 +139,10 @@ extension URLSessionWebSocketTask.Message {
             }
         case let .string(text):
             return text
+        #if canImport(Darwin)
         @unknown default:
             throw WebSocketError.unknownMessageFormat
+        #endif
         }
     }
 }

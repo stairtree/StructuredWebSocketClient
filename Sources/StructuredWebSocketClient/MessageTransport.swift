@@ -15,7 +15,7 @@ import Foundation
 import Logging
 import AsyncAlgorithms
 #if canImport(FoundationNetworking)
-import FoundationNetworking
+@preconcurrency import FoundationNetworking
 #endif
 
 public protocol MessageTransport: Sendable {

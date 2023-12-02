@@ -11,6 +11,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+#if !canImport(Darwin)
+@preconcurrency
+#endif
 import Foundation
 import AsyncAlgorithms
 #if canImport(FoundationNetworking)
@@ -53,8 +56,10 @@ public final class JSONMessageRegistryTransport<Message: MessageType>: WebSocket
             message = try self.messageDecoder.decode(Message.self, from: data)
         case let .string(text):
             message = try self.messageDecoder.decode(Message.self, from: Data(text.utf8))
+        #if canImport(Darwin)
         @unknown default:
             throw WebSocketError.unknownMessageFormat
+        #endif
         }
         return message
     }
