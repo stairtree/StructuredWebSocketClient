@@ -223,3 +223,14 @@ public final class MessageRegister: @unchecked Sendable {
         }
     }
 }
+
+#if !canImport(Darwin)
+extension NSLock {
+    fileprivate func withLock<R>(_ closure: () throws -> R) rethrows -> R {
+        self.lock()
+        defer { self.unlock() }
+        return try closure()
+    }
+}
+#endif
+

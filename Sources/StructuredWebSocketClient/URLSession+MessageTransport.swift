@@ -208,7 +208,9 @@ extension URLSessionWebSocketTask.Message {
         switch self {
         case .data(let data): "data(\(String(reflecting: data)))"
         case .string(let string): "\"\(string)\""
+        #if canImport(Darwin)
         @unknown default: "unknown message type"
+        #endif
         }
     }
 }
