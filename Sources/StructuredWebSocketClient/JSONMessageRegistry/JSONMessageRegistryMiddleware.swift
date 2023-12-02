@@ -22,7 +22,7 @@ import FoundationNetworking
 
 /// A `MessageTransport` that will try to decode incoming messages based on previously registered
 /// `MessageType`s and call their handler when they arrive.
-public final class JSONMessageRegistryTransport<Message: MessageType>: WebSocketMessageInboundMiddleware {
+public final class JSONMessageRegistryMiddleware<Message: JSONMessageType>: WebSocketMessageInboundMiddleware {
     private let messageDecoder: JSONDecoder
     internal let messageRegister: MessageRegister = .init()
     
@@ -64,7 +64,7 @@ public final class JSONMessageRegistryTransport<Message: MessageType>: WebSocket
     }
 }
 
-extension JSONMessageRegistryTransport {
+extension JSONMessageRegistryMiddleware {
     public func unregister(_ name: MessageName) {
         self.messageRegister.unregister(name)
     }
@@ -82,6 +82,8 @@ extension JSONMessageRegistryTransport {
     }
 }
 
-public protocol MessageType: Decodable {
+/// A message recieved by a ``JSONMessageRegistryMiddleware``.
+public protocol JSONMessageType: Sendable, Decodable {
+    /// Called when the middleware
     func handle() async
 }
