@@ -11,7 +11,7 @@ import Logging
 /// A protocol Swift types may conform to in order to receive `URLSession` delegate events. Does not require
 /// conformance to `NSObject`.
 protocol SimpleURLSessionTaskDelegate: Sendable {
-    func urlSession(_: URLSession, task: URLSessionTask, didCompleteWithError: Error?)
+    func urlSession(_: URLSession, task: URLSessionTask, didCompleteWithError: (any Error)?)
     func urlSession(_: URLSession, webSocketTask: URLSessionWebSocketTask, didOpenWithProtocol: String?)
     func urlSession(_: URLSession, webSocketTask: URLSessionWebSocketTask, didCloseWith: URLSessionWebSocketTask.CloseCode, reason: Data?)
 //    func urlSession(_: URLSession, task: URLSessionTask, willBeginDelayedRequest: URLRequest) async -> (URLSession.DelayedRequestDisposition, URLRequest?)
@@ -27,7 +27,7 @@ protocol SimpleURLSessionTaskDelegate: Sendable {
 /// ``SimpleURLSessionTaskDelegate``, mimicking the default behavior provided by the
 /// legacy protocol when optional methods are omitted.
 extension SimpleURLSessionTaskDelegate {
-    func urlSession(_: URLSession, task: URLSessionTask, didCompleteWithError: Error?) {}
+    func urlSession(_: URLSession, task: URLSessionTask, didCompleteWithError: (any Error)?) {}
     func urlSession(_: URLSession, webSocketTask: URLSessionWebSocketTask, didOpenWithProtocol: String?) {}
     func urlSession(_: URLSession, webSocketTask: URLSessionWebSocketTask, didCloseWith: URLSessionWebSocketTask.CloseCode, reason: Data?) {}
 //    func urlSession(_: URLSession, task: URLSessionTask, didFinishCollecting: URLSessionTaskMetrics) {}
@@ -55,7 +55,7 @@ final class URLSessionDelegateAdapter<D: SimpleURLSessionTaskDelegate & AnyObjec
         self.realDelegate = realDelegate
     }
 
-    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: (any Error)?) {
         self.realDelegate?.urlSession(session, task: task, didCompleteWithError: error)
     }
     func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didOpenWithProtocol protocol: String?) {

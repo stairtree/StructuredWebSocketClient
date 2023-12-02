@@ -26,10 +26,10 @@ public final class JSONMessageRegistryTransport<Message: MessageType>: WebSocket
     private let messageDecoder: JSONDecoder
     internal let messageRegister: MessageRegister = .init()
     
-    public let nextIn: WebSocketMessageInboundMiddleware?
+    public let nextIn: (any WebSocketMessageInboundMiddleware)?
     
     public init(
-        nextIn: WebSocketMessageInboundMiddleware?,
+        nextIn: (any WebSocketMessageInboundMiddleware)?,
         messageDecoder: JSONDecoder = .init()
     ) {
         self.nextIn = nextIn
@@ -43,8 +43,7 @@ public final class JSONMessageRegistryTransport<Message: MessageType>: WebSocket
             try await self.parse(received).handle()
             return .handled
         } catch {
-            if let nextIn { return try await nextIn.handle(received, metadata: metadata) }
-            return .unhandled(received)
+            return try await nextIn?.handle(received, metadata: metadata) ?? .unhandled(received)
         }
     }
     
@@ -98,7 +97,7 @@ public protocol MessageType: Decodable {
 public struct MessageName: Codable, Equatable, Hashable {
     
     /// Type erased closure to decode the request
-    public let decoder: (Decoder, SingleValueDecodingContainer) throws -> Any
+    public let decoder: (any Decoder, any SingleValueDecodingContainer) throws -> Any
     
     /// Type-erased handler for the message
     public let handler: (Any) async -> Void
@@ -128,7 +127,7 @@ public struct MessageName: Codable, Equatable, Hashable {
         }
     }
     
-    public init(from decoder: Decoder) throws {
+    public init(from decoder: any Decoder) throws {
         let container = try decoder.singleValueContainer()
         let value = try container.decode(String.self)
         guard let registry = decoder.userInfo[.messageRegister] as? MessageRegister else {
@@ -153,7 +152,7 @@ public struct MessageName: Codable, Equatable, Hashable {
         hasher.combine(self.value)
     }
     
-    public func encode(to encoder: Encoder) throws {
+    public func encode(to encoder: any Encoder) throws {
         var container = encoder.singleValueContainer()
         try container.encode(self.value)
     }
@@ -169,15 +168,16 @@ public enum MessageError: Error, Hashable {
 ///
 /// Use to defer declaring the message type and leave it to a higher level library
 public protocol ChildHandler {
+    
     func handle(_ message: Any) async
-    func decode(_ decoder: Decoder) throws -> Any
+    func decode(from decoder: any Decoder) throws -> Any
 }
 
 extension MessageName {
     public init<M>(name: String, childHandler: M) where M: ChildHandler {
         self.value = name
         self.handler = { message in await childHandler.handle(message) }
-        self.decoder = { decoder, _ in try childHandler.decode(decoder) }
+        self.decoder = { decoder, _ in try childHandler.decode(from: decoder) }
     }
 }
 

@@ -14,6 +14,14 @@
 
 import PackageDescription
 
+let swiftSettings: [SwiftSetting] = [
+    .enableUpcomingFeature("ForwardTrailingClosures"),
+    .enableUpcomingFeature("ExistentialAny"),
+    .enableUpcomingFeature("ConciseMagicFile"),
+    .enableUpcomingFeature("DisableOutwardActorInference"),
+    .enableExperimentalFeature("StrictConcurrency=complete"),
+]
+
 let package = Package(
     name: "StructuredWebSocketClient",
     platforms: [
@@ -39,14 +47,14 @@ let package = Package(
                 .product(name: "Logging", package: "swift-log"),
                 .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
             ],
-            swiftSettings: [.enableExperimentalFeature("StrictConcurrency=complete")]
+            swiftSettings: swiftSettings
         ),
         .target(
             name: "StructuredWebSocketClientTestSupport",
             dependencies: [
                 .target(name: "StructuredWebSocketClient"),
             ],
-            swiftSettings: [.enableExperimentalFeature("StrictConcurrency=complete")]
+            swiftSettings: swiftSettings
         ),
         .testTarget(
             name: "StructuredWebSocketClientTests",
@@ -54,7 +62,7 @@ let package = Package(
                 .target(name: "StructuredWebSocketClient"),
                 .target(name: "StructuredWebSocketClientTestSupport"),
             ],
-            swiftSettings: [.enableExperimentalFeature("StrictConcurrency=complete")]
+            swiftSettings: swiftSettings
         ),
     ]
 )

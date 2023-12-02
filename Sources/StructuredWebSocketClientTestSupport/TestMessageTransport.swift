@@ -56,8 +56,8 @@ public final class TestMessageTransport: MessageTransport, Sendable {
 }
 
 public final class NoOpMiddleWare: WebSocketMessageInboundMiddleware, WebSocketMessageOutboundMiddleware, Sendable {
-    public var nextIn: WebSocketMessageInboundMiddleware? { nil }
-    public var nextOut: WebSocketMessageOutboundMiddleware? { nil }
+    public var nextIn: (any WebSocketMessageInboundMiddleware)? { nil }
+    public var nextOut: (any WebSocketMessageOutboundMiddleware)? { nil }
 
     public init() {}
     

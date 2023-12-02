@@ -46,7 +46,7 @@ public struct MessageMetadata: Sendable {
 
 public protocol WebSocketMessageInboundMiddleware: Sendable {
     /// The next middleware in the chain
-    var nextIn: WebSocketMessageInboundMiddleware? { get }
+    var nextIn: (any WebSocketMessageInboundMiddleware)? { get }
     /// Handle an incoming message
     ///
     /// If the middleware handled the message, it must return `.handled`. Otherwise, the client will emit
@@ -57,7 +57,7 @@ public protocol WebSocketMessageInboundMiddleware: Sendable {
 
 public protocol WebSocketMessageOutboundMiddleware: Sendable {
     /// The next middleware on the way out
-    var nextOut: WebSocketMessageOutboundMiddleware? { get }
+    var nextOut: (any WebSocketMessageOutboundMiddleware)? { get }
     /// Emit an outbound message
     func send(_ message: URLSessionWebSocketTask.Message) async throws -> URLSessionWebSocketTask.Message?
 }

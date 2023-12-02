@@ -21,7 +21,7 @@ import AsyncAlgorithms
 public enum WebSocketEvent: Sendable {
     case state(WebSocketClient.State)
     case message(URLSessionWebSocketTask.Message, metadata: MessageMetadata)
-    case failure(Error)
+    case failure(any Error)
 }
 
 public final class WebSocketClient: Sendable {
@@ -31,12 +31,12 @@ public final class WebSocketClient: Sendable {
     
     private let logger: Logger
     internal let transport: any MessageTransport
-    internal let inboundMiddleware: WebSocketMessageInboundMiddleware?
-    internal let outboundMiddleware: WebSocketMessageOutboundMiddleware?
+    internal let inboundMiddleware: (any WebSocketMessageInboundMiddleware)?
+    internal let outboundMiddleware: (any WebSocketMessageOutboundMiddleware)?
 
     public init(
-        inboundMiddleware: WebSocketMessageInboundMiddleware?,
-        outboundMiddleware: WebSocketMessageOutboundMiddleware?,
+        inboundMiddleware: (any WebSocketMessageInboundMiddleware)?,
+        outboundMiddleware: (any WebSocketMessageOutboundMiddleware)?,
         transport: any MessageTransport,
         logger: Logger? = nil
     ) {

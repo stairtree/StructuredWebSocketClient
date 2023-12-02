@@ -129,7 +129,7 @@ public actor URLSessionWebSocketTransport: MessageTransport, SimpleURLSessionTas
     nonisolated func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didCloseWith closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
         Task { await self.onClose(closeCode: closeCode, reason: reason) }
     }
-    nonisolated func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+    nonisolated func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: (any Error)?) {
         Task { await self.didCompleteWithError(error) }
     }
     
@@ -159,7 +159,7 @@ public actor URLSessionWebSocketTransport: MessageTransport, SimpleURLSessionTas
         self.isAlreadyClosed = true
     }
     
-    private func didCompleteWithError(_ error: Error?) async {
+    private func didCompleteWithError(_ error: (any Error)?) async {
         guard let error, !self.isAlreadyClosed else { return }
         
         let nsError = error as NSError

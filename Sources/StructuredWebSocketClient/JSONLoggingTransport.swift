@@ -23,13 +23,13 @@ public final class JSONLoggingTransport: WebSocketMessageInboundMiddleware, WebS
     
     private let logger: Logger
     private let formatJSON: Bool
-    public let nextIn: WebSocketMessageInboundMiddleware?
-    public let nextOut: WebSocketMessageOutboundMiddleware?
+    public let nextIn: (any WebSocketMessageInboundMiddleware)?
+    public let nextOut: (any WebSocketMessageOutboundMiddleware)?
 
     public init(
         formatJSON: Bool = false,
-        nextIn: WebSocketMessageInboundMiddleware?,
-        nextOut: WebSocketMessageOutboundMiddleware?,
+        nextIn: (any WebSocketMessageInboundMiddleware)?,
+        nextOut: (any WebSocketMessageOutboundMiddleware)?,
         logger: Logger? = nil
     ) {
         self.formatJSON = formatJSON
