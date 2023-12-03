@@ -99,7 +99,11 @@ class WebSocketClientTests: XCTestCase {
 
 extension MessageMetadata: CustomDebugStringConvertible {
     public var debugDescription: String {
+        #if canImport(Darwin)
         "Metadata[number=\(self.number) receivedAt=\(self.receivedAt.formatted(.iso8601))]"
+        #else
+        "Metadata[number=\(self.number) receivedAt=\(self.receivedAt)]"
+        #endif
     }
 }
 

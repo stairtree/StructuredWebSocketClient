@@ -25,8 +25,8 @@ public final class TestMessageTransport: MessageTransport, Sendable {
     private let _onMessage: @Sendable (URLSessionWebSocketTask.Message, TestMessageTransport) async throws -> Void
     
     public init(initialMessages: [URLSessionWebSocketTask.Message] = [], onMessage: @escaping @Sendable (URLSessionWebSocketTask.Message, TestMessageTransport) async throws -> Void = { _, _ in }) {
-        _initialMessages = initialMessages.enumerated().map { .message($1, metadata: .init(number: $0 + 1)) }
-        _onMessage = onMessage
+        self._initialMessages = initialMessages.enumerated().map { .message($1, metadata: .init(number: $0 + 1)) }
+        self._onMessage = onMessage
     }
     
     public func push(_ event: WebSocketEvent) async {
@@ -34,7 +34,7 @@ public final class TestMessageTransport: MessageTransport, Sendable {
     }
     
     public func send(_ message: URLSessionWebSocketTask.Message) async throws {
-        try await _onMessage(message, self)
+        try await self._onMessage(message, self)
     }
     
     public func close(with closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
@@ -62,10 +62,10 @@ public final class NoOpMiddleWare: WebSocketMessageInboundMiddleware, WebSocketM
     public init() {}
     
     public func send(_ message: URLSessionWebSocketTask.Message) async throws -> URLSessionWebSocketTask.Message? {
-        try await nextOut?.send(message)
+        try await self.nextOut?.send(message)
     }
     
     public func handle(_ received: URLSessionWebSocketTask.Message, metadata: StructuredWebSocketClient.MessageMetadata) async throws -> StructuredWebSocketClient.MessageHandling {
-        try await nextIn?.handle(received, metadata: metadata) ?? .unhandled(received)
+        try await self.nextIn?.handle(received, metadata: metadata) ?? .unhandled(received)
     }
 }

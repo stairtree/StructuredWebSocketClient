@@ -26,7 +26,8 @@ public enum WebSocketEvent: Sendable {
 
 public final class WebSocketClient: Sendable {
     public enum State: Hashable, Sendable {
-        case connected, disconnected(closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?)
+        case connected
+        case disconnected(closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?)
     }
     
     private let logger: Logger
@@ -101,11 +102,11 @@ extension WebSocketEvent: CustomDebugStringConvertible {
     public var debugDescription: String {
         switch self {
         case let .state(s):
-            return "\(s)"
+            "\(s)"
         case let .message(msg, metadata: meta):
-            return "'\(msg)', metadata: \(meta)"
+            "'\(msg)', metadata: \(meta)"
         case let .failure(error):
-            return "error(\(error))"
+            "error(\(error))"
         }
     }
 }
@@ -129,9 +130,9 @@ extension URLSessionWebSocketTask.Message {
     public func data() throws -> Data {
         switch self {
         case let .data(data):
-            return data
+            data
         case let .string(text):
-            return Data(text.utf8)
+            Data(text.utf8)
         #if canImport(Darwin)
         @unknown default:
             throw WebSocketError.unknownMessageFormat
@@ -143,12 +144,12 @@ extension URLSessionWebSocketTask.Message {
         switch self {
         case let .data(data):
             if let str = String(data: data, encoding: .utf8) {
-                return str
+                str
             } else {
                 throw WebSocketError.notUTF8String
             }
         case let .string(text):
-            return text
+            text
         #if canImport(Darwin)
         @unknown default:
             throw WebSocketError.unknownMessageFormat

@@ -31,10 +31,9 @@ public final class InterceptingTransport: WebSocketMessageInboundMiddleware {
     
     public func handle(_ received: URLSessionWebSocketTask.Message, metadata: MessageMetadata) async throws -> MessageHandling {
         switch try await self._handle(received) {
-        case .handled: return .handled
+        case .handled: .handled
         case .unhandled(let message):
-            if let nextIn { return try await nextIn.handle(message, metadata: metadata) }
-            return .unhandled(message)
+            try await self.nextIn?.handle(message, metadata: metadata) ?? .unhandled(message)
         }
     }
 }

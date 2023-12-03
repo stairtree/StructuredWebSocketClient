@@ -38,11 +38,13 @@ public struct MessageName: Codable, Equatable, Hashable {
     }
     
     public init(from decoder: any Decoder) throws {
+        guard let registry = decoder.userInfo[.jsonMessageRegistry] as? JSONMessageRegistry else {
+            preconditionFailure("No MessageRegister found in decoder's userInfo")
+        }
+
         let container = try decoder.singleValueContainer()
         let value = try container.decode(String.self)
-        guard let registry = decoder.userInfo[.messageRegister] as? MessageRegister else {
-            fatalError("No MessageRegister found in decoder's userInfo")
-        }
+        
         guard let name = registry.name(for: value) else {
             throw DecodingError.dataCorrupted(.init(
                 codingPath: container.codingPath,
@@ -55,7 +57,7 @@ public struct MessageName: Codable, Equatable, Hashable {
     }
     
     public static func == (lhs: MessageName, rhs: MessageName) -> Bool {
-        return lhs.value == rhs.value
+        lhs.value == rhs.value
     }
             
     public func hash(into hasher: inout Hasher) {
