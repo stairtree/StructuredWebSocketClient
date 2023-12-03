@@ -1,16 +1,14 @@
-import class Foundation.NSLock
+import AsyncHelpers
 
 extension CodingUserInfoKey {
-    public static let messageRegister: CodingUserInfoKey = .init(rawValue: "messageRegister")!
+    public static let jsonMessageRegistry = CodingUserInfoKey(rawValue: "jsonMessageRegistry")!
 }
 
-public final class MessageRegister: @unchecked Sendable {
+public final class JSONMessageRegistry: @unchecked Sendable {
     /// Registry for known inbound message names
     private var names: [String: MessageName] = [:]
     /// Lock protecting the message name register
-    private let lock: NSLock = .init()
-    /// - Warning: For testing only
-    internal var registeredNames: AnyCollection<MessageName> { .init(self.names.values) }
+    private let lock: Locking.FastLock = .init()
     
     public init() {}
     
@@ -22,12 +20,14 @@ public final class MessageRegister: @unchecked Sendable {
     
     public func unregisterAll() {
         self.lock.withLock {
-            self.names = [:]
+            self.names.removeAll()
         }
     }
     
     public func register(_ name: MessageName) {
         self.lock.withLock {
+            assert(self.names[name.value] == nil, "Attempted to register duplicate message name \(name.value)")
+            
             if self.names[name.value] == nil {
                 self.names[name.value] = name
             }
@@ -40,13 +40,3 @@ public final class MessageRegister: @unchecked Sendable {
         }
     }
 }
-
-#if !canImport(Darwin)
-extension NSLock {
-    fileprivate func withLock<R>(_ closure: () throws -> R) rethrows -> R {
-        self.lock()
-        defer { self.unlock() }
-        return try closure()
-    }
-}
-#endif

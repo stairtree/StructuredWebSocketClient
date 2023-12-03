@@ -24,7 +24,7 @@ import FoundationNetworking
 /// `MessageType`s and call their handler when they arrive.
 public final class JSONMessageRegistryMiddleware<Message: JSONMessageType>: WebSocketMessageInboundMiddleware {
     private let messageDecoder: JSONDecoder
-    internal let messageRegister: MessageRegister = .init()
+    internal let messageRegistry: JSONMessageRegistry = .init()
     
     public let nextIn: (any WebSocketMessageInboundMiddleware)?
     
@@ -34,7 +34,7 @@ public final class JSONMessageRegistryMiddleware<Message: JSONMessageType>: WebS
     ) {
         self.nextIn = nextIn
         self.messageDecoder = messageDecoder
-        messageDecoder.userInfo[.messageRegister] = self.messageRegister
+        messageDecoder.userInfo[.jsonMessageRegistry] = self.messageRegistry
     }
     
     public func handle(_ received: URLSessionWebSocketTask.Message, metadata: MessageMetadata) async throws -> MessageHandling {
@@ -43,7 +43,7 @@ public final class JSONMessageRegistryMiddleware<Message: JSONMessageType>: WebS
             try await self.parse(received).handle()
             return .handled
         } catch {
-            return try await nextIn?.handle(received, metadata: metadata) ?? .unhandled(received)
+            return try await self.nextIn?.handle(received, metadata: metadata) ?? .unhandled(received)
         }
     }
     
@@ -66,24 +66,24 @@ public final class JSONMessageRegistryMiddleware<Message: JSONMessageType>: WebS
 
 extension JSONMessageRegistryMiddleware {
     public func unregister(_ name: MessageName) {
-        self.messageRegister.unregister(name)
+        self.messageRegistry.unregister(name)
     }
     
     public func unregisterAll() {
-        self.messageRegister.unregisterAll()
+        self.messageRegistry.unregisterAll()
     }
     
     public func register(_ name: MessageName) {
-        self.messageRegister.register(name)
+        self.messageRegistry.register(name)
     }
     
     public func name(for value: String) -> MessageName? {
-        self.messageRegister.name(for: value)
+        self.messageRegistry.name(for: value)
     }
 }
 
 /// A message recieved by a ``JSONMessageRegistryMiddleware``.
 public protocol JSONMessageType: Sendable, Decodable {
-    /// Called when the middleware
+    /// Called when the middleware receives a message of the appropriate type.
     func handle() async
 }
