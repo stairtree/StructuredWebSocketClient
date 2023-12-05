@@ -38,7 +38,7 @@ let package = Package(
         // Swift logging API
         .package(url: "https://github.com/apple/swift-log.git", from: "1.5.2"),
         // AsyncChannel with backpressure
-        .package(url: "https://github.com/apple/swift-async-algorithms", from: "1.0.0-beta.1"),
+        .package(url: "https://github.com/apple/swift-async-algorithms", from: "1.0.0"),
         .package(url: "https://github.com/stairtree/async-helpers.git", from: "0.2.0"),
     ],
     targets: [
