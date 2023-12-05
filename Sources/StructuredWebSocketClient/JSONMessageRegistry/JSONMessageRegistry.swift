@@ -6,13 +6,13 @@ extension CodingUserInfoKey {
 
 public final class JSONMessageRegistry: @unchecked Sendable {
     /// Registry for known inbound message names
-    private var names: [String: MessageName] = [:]
+    private var names: [String: JSONMessageName] = [:]
     /// Lock protecting the message name register
     private let lock: Locking.FastLock = .init()
     
     public init() {}
     
-    public func unregister(_ name: MessageName) {
+    public func unregister(_ name: JSONMessageName) {
         self.lock.withLock {
             _ = self.names.removeValue(forKey: name.value)
         }
@@ -24,7 +24,7 @@ public final class JSONMessageRegistry: @unchecked Sendable {
         }
     }
     
-    public func register(_ name: MessageName) {
+    public func register(_ name: JSONMessageName) {
         self.lock.withLock {
             assert(self.names[name.value] == nil, "Attempted to register duplicate message name \(name.value)")
             
@@ -34,7 +34,7 @@ public final class JSONMessageRegistry: @unchecked Sendable {
         }
     }
     
-    public func name(for value: String) -> MessageName? {
+    public func name(for value: String) -> JSONMessageName? {
         self.lock.withLock {
             self.names[value]
         }

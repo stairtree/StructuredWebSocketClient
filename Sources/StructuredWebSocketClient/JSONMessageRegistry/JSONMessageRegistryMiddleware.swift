@@ -65,7 +65,7 @@ public final class JSONMessageRegistryMiddleware<Message: JSONMessageType>: WebS
 }
 
 extension JSONMessageRegistryMiddleware {
-    public func unregister(_ name: MessageName) {
+    public func unregister(_ name: JSONMessageName) {
         self.messageRegistry.unregister(name)
     }
     
@@ -73,11 +73,11 @@ extension JSONMessageRegistryMiddleware {
         self.messageRegistry.unregisterAll()
     }
     
-    public func register(_ name: MessageName) {
+    public func register(_ name: JSONMessageName) {
         self.messageRegistry.register(name)
     }
     
-    public func name(for value: String) -> MessageName? {
+    public func name(for value: String) -> JSONMessageName? {
         self.messageRegistry.name(for: value)
     }
 }
