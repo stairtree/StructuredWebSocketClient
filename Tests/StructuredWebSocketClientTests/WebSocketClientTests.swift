@@ -20,7 +20,7 @@ import Foundation
 @preconcurrency import FoundationNetworking
 #endif
 
-class WebSocketClientTests: XCTestCase {
+final class WebSocketClientTests: XCTestCase {
     override class func setUp() {
         XCTAssert(isLoggingConfigured)
     }

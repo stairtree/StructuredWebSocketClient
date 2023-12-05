@@ -196,7 +196,7 @@ extension URLSessionWebSocketTask.Message {
 }
 
 /// We need to be able to have not yet initialized the task when setting up the session delegate, especially on
-/// Linux; this we use trivial forwarding wrapper to sidestep the compiler. It also conveniently takes care of
+/// Linux; thus we use trivial forwarding wrapper to sidestep the compiler. It also conveniently takes care of
 /// the missing Sendable conformance on Linux as well.
 private final class SendableWrappedURLSessionWebSocketTask: @unchecked Sendable {
     var task: URLSessionWebSocketTask!
