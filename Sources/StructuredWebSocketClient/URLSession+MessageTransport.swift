@@ -63,43 +63,23 @@ public actor URLSessionWebSocketTransport: MessageTransport, SimpleURLSessionTas
     }
     
     private nonisolated let delegateQueue: OperationQueue
+
     private let logger: Logger
-    #if canImport(Darwin)
-    private let wsTask: URLSessionWebSocketTask
-    #else
-    /// We need to be able to have not yet initialized the task when dealing with Linux's weird URLSession-ness, so we
-    /// blatantly trick the compiler into not complaining.
-    private final class TaskSetupWorkaround: @unchecked Sendable {
-        var task: URLSessionWebSocketTask!
-        func send(_ message: URLSessionWebSocketTask.Message) async throws { try await self.task.send(message) }
-        var closeCode: URLSessionWebSocketTask.CloseCode { self.task.closeCode }
-        func cancel(with code: URLSessionWebSocketTask.CloseCode, reason: Data?) { self.task.cancel(with: code, reason: reason) }
-        func resume() { self.task.resume() }
-        var state: URLSessionTask.State { self.task.state }
-        func receive() async throws -> URLSessionWebSocketTask.Message { try await self.task.receive() }
-        init() {}
-    }
-    private let wsTask: TaskSetupWorkaround = .init()
-    #endif
+
+    private let wsTask: SendableWrappedURLSessionWebSocketTask = .init()
     private var delegateHandler: URLSessionDelegateAdapter<URLSessionWebSocketTransport>?
-    private var isAlreadyClosed = false
+
     /// Will fail if reading a message failed or if the websocket task completes with an error
     private let events: AsyncChannel<WebSocketEvent> = .init()
+    private var isAlreadyClosed = false
     
     public init(request: URLRequest, urlSession: URLSession = .shared, logger: Logger? = nil) async {
         self.logger = logger ?? .init(label: "URLSessionWebSocketTransport")
 
-        #if canImport(Darwin)
-        self.wsTask = urlSession.webSocketTask(with: request)
         self.delegateQueue = urlSession.delegateQueue
         self.delegateHandler = URLSessionDelegateAdapter(adapting: self)
-        self.wsTask.delegate = self.delegateHandler
-        #else
-        self.delegateQueue = urlSession.delegateQueue
-        self.delegateHandler = URLSessionDelegateAdapter(adapting: self)
-        let session = URLSession(configuration: urlSession.configuration, delegate: self.delegateHandler, delegateQueue: urlSession.delegateQueue)
-        self.wsTask.task = session.webSocketTask(with: request)
-        #endif
+        let urlSession = URLSession(configuration: urlSession.configuration, delegate: self.delegateHandler, delegateQueue: urlSession.delegateQueue)
+        self.wsTask.task = urlSession.webSocketTask(with: request)
     }
     
     public func send(_ message: URLSessionWebSocketTask.Message) async throws {
@@ -213,4 +193,20 @@ extension URLSessionWebSocketTask.Message {
         #endif
         }
     }
+}
+
+/// We need to be able to have not yet initialized the task when setting up the session delegate, especially on
+/// Linux; this we use trivial forwarding wrapper to sidestep the compiler. It also conveniently takes care of
+/// the missing Sendable conformance on Linux as well.
+private final class SendableWrappedURLSessionWebSocketTask: @unchecked Sendable {
+    var task: URLSessionWebSocketTask!
+    var closeCode: URLSessionWebSocketTask.CloseCode { self.task.closeCode }
+    var state: URLSessionTask.State { self.task.state }
+
+    init() {}
+
+    func resume() { self.task.resume() }
+    func send(_ message: URLSessionWebSocketTask.Message) async throws { try await self.task.send(message) }
+    func receive() async throws -> URLSessionWebSocketTask.Message { try await self.task.receive() }
+    func cancel(with code: URLSessionWebSocketTask.CloseCode, reason: Data?) { self.task.cancel(with: code, reason: reason) }
 }
