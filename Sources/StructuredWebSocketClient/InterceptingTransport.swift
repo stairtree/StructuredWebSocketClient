@@ -18,13 +18,12 @@ import FoundationNetworking
 #endif
 
 public final class InterceptingTransport: WebSocketMessageInboundMiddleware {
-    
-    public let nextIn: WebSocketMessageInboundMiddleware?
-    let _handle: (_ message: URLSessionWebSocketTask.Message) async throws -> MessageHandling
+    public let nextIn: (any WebSocketMessageInboundMiddleware)?
+    let _handle: @Sendable (_ message: URLSessionWebSocketTask.Message) async throws -> MessageHandling
     
     public init(
-        next: WebSocketMessageInboundMiddleware?,
-        handle: @escaping (_ message: URLSessionWebSocketTask.Message) async throws -> MessageHandling
+        next: (any WebSocketMessageInboundMiddleware)?,
+        handle: @escaping @Sendable (_ message: URLSessionWebSocketTask.Message) async throws -> MessageHandling
     ) {
         self.nextIn = next
         self._handle = handle
@@ -32,10 +31,9 @@ public final class InterceptingTransport: WebSocketMessageInboundMiddleware {
     
     public func handle(_ received: URLSessionWebSocketTask.Message, metadata: MessageMetadata) async throws -> MessageHandling {
         switch try await self._handle(received) {
-        case .handled: return .handled
+        case .handled: .handled
         case .unhandled(let message):
-            if let nextIn { return try await nextIn.handle(message, metadata: metadata) }
-            return .unhandled(message)
+            try await self.nextIn?.handle(message, metadata: metadata) ?? .unhandled(message)
         }
     }
 }

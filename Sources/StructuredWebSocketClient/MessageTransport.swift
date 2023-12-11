@@ -15,10 +15,10 @@ import Foundation
 import Logging
 import AsyncAlgorithms
 #if canImport(FoundationNetworking)
-import FoundationNetworking
+@preconcurrency import FoundationNetworking
 #endif
 
-public protocol MessageTransport {
+public protocol MessageTransport: Sendable {
     /// Connect the transport
     /// - Returns: An async sequence of events. This includes state changes and messages.
     func connect() -> AsyncChannel<WebSocketEvent>
@@ -28,30 +28,25 @@ public protocol MessageTransport {
     func close(with closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?)
 }
 
-public protocol MessageTransportDelegate: AnyObject {
-    func didOpenWithProtocol(_ protocol: String?)
-    func didCloseWith(closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?)
-}
-
-public enum MessageHandling {
+public enum MessageHandling: Sendable {
     case handled, unhandled(URLSessionWebSocketTask.Message)
 }
 
 public struct MessageMetadata: Sendable {
     /// The increasing number of the message
-    public var number: Int
+    public let number: Int
     /// The uptimenanoseconds the message was received from the network
-    public var receivedAt: DispatchTime
+    public let receivedAt: Date
     
-    public init(number: Int, receivedAt: DispatchTime = .now()) {
+    public init(number: Int, receivedAt: Date = .now) {
         self.number = number
         self.receivedAt = receivedAt
     }
 }
 
-public protocol WebSocketMessageInboundMiddleware {
+public protocol WebSocketMessageInboundMiddleware: Sendable {
     /// The next middleware in the chain
-    var nextIn: WebSocketMessageInboundMiddleware? { get }
+    var nextIn: (any WebSocketMessageInboundMiddleware)? { get }
     /// Handle an incoming message
     ///
     /// If the middleware handled the message, it must return `.handled`. Otherwise, the client will emit
@@ -60,10 +55,9 @@ public protocol WebSocketMessageInboundMiddleware {
     func handle(_ received: URLSessionWebSocketTask.Message, metadata: MessageMetadata) async throws -> MessageHandling
 }
 
-public protocol WebSocketMessageOutboundMiddleware {
+public protocol WebSocketMessageOutboundMiddleware: Sendable {
     /// The next middleware on the way out
-    var nextOut: WebSocketMessageOutboundMiddleware? { get }
+    var nextOut: (any WebSocketMessageOutboundMiddleware)? { get }
     /// Emit an outbound message
     func send(_ message: URLSessionWebSocketTask.Message) async throws -> URLSessionWebSocketTask.Message?
 }
-

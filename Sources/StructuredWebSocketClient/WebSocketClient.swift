@@ -15,28 +15,29 @@ import Foundation
 import Logging
 import AsyncAlgorithms
 #if canImport(FoundationNetworking)
-import FoundationNetworking
+@preconcurrency import FoundationNetworking
 #endif
 
 public enum WebSocketEvent: Sendable {
     case state(WebSocketClient.State)
     case message(URLSessionWebSocketTask.Message, metadata: MessageMetadata)
-    case failure(Error)
+    case failure(any Error)
 }
 
-public final class WebSocketClient {
+public final class WebSocketClient: Sendable {
     public enum State: Hashable, Sendable {
-        case connected, disconnected(closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?)
+        case connected
+        case disconnected(closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?)
     }
     
     private let logger: Logger
     internal let transport: any MessageTransport
-    internal let inboundMiddleware: WebSocketMessageInboundMiddleware?
-    internal let outboundMiddleware: WebSocketMessageOutboundMiddleware?
+    internal let inboundMiddleware: (any WebSocketMessageInboundMiddleware)?
+    internal let outboundMiddleware: (any WebSocketMessageOutboundMiddleware)?
 
     public init(
-        inboundMiddleware: WebSocketMessageInboundMiddleware?,
-        outboundMiddleware: WebSocketMessageOutboundMiddleware?,
+        inboundMiddleware: (any WebSocketMessageInboundMiddleware)?,
+        outboundMiddleware: (any WebSocketMessageOutboundMiddleware)?,
         transport: any MessageTransport,
         logger: Logger? = nil
     ) {
@@ -46,18 +47,17 @@ public final class WebSocketClient {
         self.logger = logger ?? Logger(label: "WebSocketClient")
     }
     
-    deinit {
-        self.logger.trace("♻️ Deinit of WebSocketClient")
-    }
-    
-    public func connect() ->  AsyncCompactMapSequence<AsyncChannel<WebSocketEvent>, WebSocketEvent> {
-        self.transport.connect().compactMap { e -> WebSocketEvent? in
+    public func connect() -> AsyncCompactMapSequence<AsyncChannel<WebSocketEvent>, WebSocketEvent> {
+        let inboundMiddleware = self.inboundMiddleware
+        let logger = self.logger
+        
+        return self.transport.connect().compactMap { e -> WebSocketEvent? in
             switch e {
             case let .state(s):
                 return .state(s)
             case let .message(m, metadata: meta):
                 // pipe message through middleware
-                if let middleware = self.inboundMiddleware {
+                if let middleware = inboundMiddleware {
                     do {
                         let handled = try await middleware.handle(m, metadata: meta)
                         switch handled {
@@ -67,7 +67,7 @@ public final class WebSocketClient {
                             return.message(unhandled, metadata: meta)
                         }
                     } catch {
-                        self.logger.error("\(error)")
+                        logger.error("\(error)")
                         // In case the middleware throws when handling the message
                         // We could also just pretend it was unhandled.
                         return .failure(error)
@@ -76,24 +76,24 @@ public final class WebSocketClient {
                     return .message(m, metadata: meta)
                 }
             case let .failure(error):
-                self.logger.error("\(error)")
+                logger.error("\(error)")
                 return .failure(error)
             }
         }
     }
     
     public func disconnect(reason: String?) async {
-        transport.close(with: .normalClosure, reason: Data(reason?.utf8 ?? "Closing connection".utf8))
+        self.transport.close(with: .normalClosure, reason: Data(reason?.utf8 ?? "Closing connection".utf8))
     }
     
     /// Pass the message through all the middleware, and then send it via the transport (if it hasn't been swallowed by middleware)
     public func sendMessage(_ message: URLSessionWebSocketTask.Message) async throws {
         if let outboundMiddleware {
             if let msg = try await outboundMiddleware.send(message) {
-                try await transport.send(msg)
+                try await self.transport.send(msg)
             }
         } else {
-            try await transport.send(message)
+            try await self.transport.send(message)
         }
     }
 }
@@ -102,11 +102,21 @@ extension WebSocketEvent: CustomDebugStringConvertible {
     public var debugDescription: String {
         switch self {
         case let .state(s):
-            return "\(s)"
+            "\(s)"
         case let .message(msg, metadata: meta):
-            return "'\(msg)', metadata: \(meta)"
+            "'\(msg)', metadata: \(meta)"
         case let .failure(error):
-            return "error(\(error))"
+            "error(\(error))"
+        }
+    }
+}
+
+extension WebSocketClient.State: CustomDebugStringConvertible {
+    public var debugDescription: String {
+        switch self {
+        case .connected: "connected"
+        case let .disconnected(closeCode, reason):
+            "disconnected(code: \(closeCode.rawValue), reason: \(reason.map { String(decoding: $0, as: UTF8.self) } ?? "<none>"))"
         }
     }
 }
@@ -120,11 +130,13 @@ extension URLSessionWebSocketTask.Message {
     public func data() throws -> Data {
         switch self {
         case let .data(data):
-            return data
+            data
         case let .string(text):
-            return Data(text.utf8)
+            Data(text.utf8)
+        #if canImport(Darwin)
         @unknown default:
             throw WebSocketError.unknownMessageFormat
+        #endif
         }
     }
     
@@ -132,14 +144,16 @@ extension URLSessionWebSocketTask.Message {
         switch self {
         case let .data(data):
             if let str = String(data: data, encoding: .utf8) {
-                return str
+                str
             } else {
                 throw WebSocketError.notUTF8String
             }
         case let .string(text):
-            return text
+            text
+        #if canImport(Darwin)
         @unknown default:
             throw WebSocketError.unknownMessageFormat
+        #endif
         }
     }
 }
