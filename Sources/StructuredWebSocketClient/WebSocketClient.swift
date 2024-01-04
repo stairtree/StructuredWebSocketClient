@@ -67,7 +67,7 @@ public final class WebSocketClient: Sendable {
                             return.message(unhandled, metadata: meta)
                         }
                     } catch {
-                        logger.error("\(error)")
+                        logger.error("Middleware error: \(error)")
                         // In case the middleware throws when handling the message
                         // We could also just pretend it was unhandled.
                         return .failure(error)
@@ -76,7 +76,7 @@ public final class WebSocketClient: Sendable {
                     return .message(m, metadata: meta)
                 }
             case let .failure(error):
-                logger.error("\(error)")
+                logger.error("Transport error: \(error)")
                 return .failure(error)
             }
         }

@@ -147,6 +147,7 @@ public actor URLSessionWebSocketTransport: MessageTransport, SimpleURLSessionTas
         self.logger.debug("""
             WebSocketClient did complete with error (code: \(nsError.code), reason: \(reason))
             """)
+        self.logger.trace("WebSocketTask close code: \(self.wsTask.closeCode)")
         await self.events.send(.failure(nsError))
         // If the task is already closed, we need to call onClose, as that is
         // the only way the events channel is finished.
