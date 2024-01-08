@@ -93,7 +93,9 @@ public actor URLSessionWebSocketTransport: MessageTransport, SimpleURLSessionTas
             Task { await self.onClose(closeCode: closeCode, reason: reason) }
             return
         }
-        self.wsTask.cancel(with: closeCode, reason: reason)
+        self.wsTask.cancel(with: closeCode, reason: reason) // sends close frame
+        // although if the socket never opened, we still need to close the events… 🤦‍♂️
+        Task { await self.onClose(closeCode: closeCode, reason: reason) }
     }
     
     public nonisolated func connect() -> AsyncChannel<WebSocketEvent> {
@@ -126,6 +128,7 @@ public actor URLSessionWebSocketTransport: MessageTransport, SimpleURLSessionTas
     
     private func onClose(closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) async {
         guard !self.isAlreadyClosed else {
+            logger.warning("⚠️ self.isAlreadyClosed in \(#function)")
             // Due to delegate callbacks, we can get here more than once. Don't send multiple
             // disconnect events or log multiple closures.
             return
