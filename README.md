@@ -26,6 +26,6 @@ To integrate the package:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/stairtree/StructuredWebSocketClient.git", from: "0.1.0"),
+    .package(url: "https://github.com/stairtree/StructuredWebSocketClient.git", from: "0.2.0"),
 ]
 ```
