@@ -154,9 +154,7 @@ public actor URLSessionWebSocketTransport: MessageTransport, SimpleURLSessionTas
         await self.events.send(.failure(nsError))
         // If the task is already closed, we need to call onClose, as that is
         // the only way the events channel is finished.
-        if self.wsTask.closeCode != .invalid {
-            await self.onClose(closeCode: .abnormalClosure, reason: Data(reason.utf8))
-        }
+        await self.onClose(closeCode: .abnormalClosure, reason: Data(reason.utf8))
     }
     
     private func readNextMessage(_ number: Int) async {
