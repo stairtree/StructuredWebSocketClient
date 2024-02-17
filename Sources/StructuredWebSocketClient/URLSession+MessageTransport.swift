@@ -87,15 +87,16 @@ public actor URLSessionWebSocketTransport: MessageTransport, SimpleURLSessionTas
     }
     
     public nonisolated func close(with closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
+        logger.trace("\(#function) called")
         // If the task is already closed, we need to call onClose, as that is
         // the only way the events channel is finished.
         guard self.wsTask.closeCode == .invalid else {
-            Task { await self.onClose(closeCode: closeCode, reason: reason) }
+            Task { await self.onClose(closeCode: closeCode, reason: reason, caller: "\(#function) [1]") }
             return
         }
         self.wsTask.cancel(with: closeCode, reason: reason) // sends close frame
         // although if the socket never opened, we still need to close the events… 🤦‍♂️
-        Task { await self.onClose(closeCode: closeCode, reason: reason) }
+        Task { await self.onClose(closeCode: closeCode, reason: reason, caller: "\(#function) [2]") }
     }
     
     public nonisolated func connect() -> AsyncChannel<WebSocketEvent> {
@@ -126,9 +127,10 @@ public actor URLSessionWebSocketTransport: MessageTransport, SimpleURLSessionTas
         await self.readNextMessage(1)
     }
     
-    private func onClose(closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) async {
+    private func onClose(closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?, caller: String = #function) async {
+        logger.trace("\(#function) called from \(caller)")
         guard !self.isAlreadyClosed else {
-            logger.warning("⚠️ self.isAlreadyClosed in \(#function)")
+            logger.trace("self.isAlreadyClosed in \(#function) called from \(caller)")
             // Due to delegate callbacks, we can get here more than once. Don't send multiple
             // disconnect events or log multiple closures.
             return
@@ -142,7 +144,8 @@ public actor URLSessionWebSocketTransport: MessageTransport, SimpleURLSessionTas
         self.isAlreadyClosed = true
     }
     
-    private func didCompleteWithError(_ error: (any Error)?) async {
+    private func didCompleteWithError(_ error: (any Error)?, caller: String = #function) async {
+        logger.trace("\(#function) with isAlreadyClosed: \(self.isAlreadyClosed), error: \(String(describing: error)) called from \(caller)")
         guard let error, !self.isAlreadyClosed else { return }
         
         let nsError = error as NSError
@@ -169,8 +172,6 @@ public actor URLSessionWebSocketTransport: MessageTransport, SimpleURLSessionTas
         do {
             let message = try await self.wsTask.receive()
             let meta = MessageMetadata(number: number)
-            
-            self.logger.trace("WebSocketClient did receive message with number \(number) \(message.loggingDescription)")
             await self.events.send(.message(message, metadata: meta))
             Task { await self.readNextMessage(number + 1) }
         } catch {
