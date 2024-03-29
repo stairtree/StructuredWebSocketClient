@@ -30,7 +30,7 @@ public struct JSONMessageName: Sendable, Codable, Equatable, Hashable {
     public static func initializer<M: Decodable & Sendable>(
         for value: String,
         ofType: M.Type
-    ) -> (@escaping @Sendable (M) async -> Void) -> Self {
+    ) -> @Sendable (@escaping @Sendable (M) async -> Void) -> Self {
         { handler in .init(value, associatedType: M.self, typeHandler: handler) }
     }
     
