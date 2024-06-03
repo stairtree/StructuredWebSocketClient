@@ -68,7 +68,7 @@ final class WebSocketClientTests: XCTestCase {
 
         // Postman's echo server
         let request = URLRequest(url: .init(string: "wss://ws.postman-echo.com/raw")!)
-        let client = await WebSocketClient(inboundMiddleware: nil, outboundMiddleware: nil, transport: URLSessionWebSocketTransport(request: request), logger: logger)
+        let client = WebSocketClient(inboundMiddleware: nil, outboundMiddleware: nil, transport: URLSessionWebSocketTransport(request: request), logger: logger)
         let outMsg = "Hi there"
         let expectation = XCTestExpectation(description: "message received")
         

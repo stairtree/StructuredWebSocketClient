@@ -50,11 +50,20 @@ extension SimpleURLSessionTaskDelegate {
 /// which is a reference type, to ensure that an explicitly weak reference may be taken.
 final class URLSessionDelegateAdapter<D: SimpleURLSessionTaskDelegate & AnyObject>: NSObject, URLSessionWebSocketDelegate {
     private weak var realDelegate: D?
-
+    
     init(adapting realDelegate: D) {
         self.realDelegate = realDelegate
     }
-
+    
+    /// Allows initializing without providing the real delegate immediately
+    ///
+    /// This is helpful in non-isolated actor initializers, where self is not available yet.
+    override init() {}
+    
+    func setDelegate(_ realDelegate: D) {
+        self.realDelegate = realDelegate
+    }
+    
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: (any Error)?) {
         self.realDelegate?.urlSession(session, task: task, didCompleteWithError: error)
     }

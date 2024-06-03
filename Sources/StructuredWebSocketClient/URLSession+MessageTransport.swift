@@ -73,13 +73,14 @@ public actor URLSessionWebSocketTransport: MessageTransport, SimpleURLSessionTas
     private let events: AsyncChannel<WebSocketEvent> = .init()
     private var isAlreadyClosed = false
     
-    public init(request: URLRequest, urlSession: URLSession = .shared, logger: Logger? = nil) async {
+    public init(request: URLRequest, urlSession: URLSession = .shared, logger: Logger? = nil) {
         self.logger = logger ?? .init(label: "URLSessionWebSocketTransport")
 
         self.delegateQueue = urlSession.delegateQueue
-        self.delegateHandler = URLSessionDelegateAdapter(adapting: self)
+        self.delegateHandler = URLSessionDelegateAdapter() // self is not yet available in non-isolated init
         let urlSession = URLSession(configuration: urlSession.configuration, delegate: self.delegateHandler, delegateQueue: urlSession.delegateQueue)
         self.wsTask.task = urlSession.webSocketTask(with: request)
+        self.delegateHandler?.setDelegate(self) // so we have to set the delegate here
     }
     
     public func send(_ message: URLSessionWebSocketTask.Message) async throws {
