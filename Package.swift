@@ -25,10 +25,10 @@ let swiftSettings: [SwiftSetting] = [
 let package = Package(
     name: "StructuredWebSocketClient",
     platforms: [
-        .macOS(.v12),
-        .iOS(.v15),
-        .watchOS(.v8),
-        .tvOS(.v15),
+        .macOS(.v10_15),
+        .iOS(.v13),
+        .watchOS(.v6),
+        .tvOS(.v13),
     ],
     products: [
         .library(name: "StructuredWebSocketClient", targets: ["StructuredWebSocketClient"]),

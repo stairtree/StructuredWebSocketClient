@@ -25,6 +25,27 @@ final class WebSocketClientTests: XCTestCase {
         XCTAssert(isLoggingConfigured)
     }
     
+    func testNeverOpening() async throws {
+        let logger = Logger(label: "Test")
+        logger.debug("Creating client")
+        // This is an invalid URL - it's not a websocket endpoint
+        let request = URLRequest(url: .init(string: "https://www.apple.com")!)
+        let tt = URLSessionWebSocketTransport(request: request, urlSession: .shared, logger: logger)
+        let client = WebSocketClient(
+            inboundMiddleware: NoOpMiddleWare(),
+            outboundMiddleware: NoOpMiddleWare(),
+            transport: tt,
+            logger: logger
+        )
+        logger.debug("Connecting")
+        
+        for try await event in client.connect() {
+            logger.debug("\(String(reflecting: event))")
+        }
+        
+        logger.debug("Events are done")
+    }
+    
     func testOpen() async throws {
         let tt = TestMessageTransport(initialMessages: [
             // it's not guaranteed that there aren't messages put inbetween
@@ -97,6 +118,7 @@ final class WebSocketClientTests: XCTestCase {
     }
 }
 
+@available(iOS 15.0, *)
 extension MessageMetadata: CustomDebugStringConvertible {
     public var debugDescription: String {
         #if canImport(Darwin)
@@ -119,3 +141,27 @@ let isLoggingConfigured: Bool = {
     }
     return true
 }()
+
+import AsyncAlgorithms
+public final class TestNotOpeningTransport: MessageTransport, Sendable {
+    private let _events: AsyncChannel<WebSocketEvent> = .init()
+    private let events: AsyncChannel<WebSocketEvent> = .init()
+    
+    public init() {}
+    
+    public func send(_ message: URLSessionWebSocketTask.Message) async throws {}
+    
+    public func close(with closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
+        //
+    }
+    
+    public func connect() -> AsyncChannel<WebSocketEvent> {
+        Task { [unowned self] in
+            for await event in self._events {
+                await self.events.send(event)
+            }
+            self.events.finish()
+        }
+        return self.events
+    }
+}

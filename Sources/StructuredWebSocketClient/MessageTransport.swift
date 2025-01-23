@@ -38,7 +38,7 @@ public struct MessageMetadata: Sendable {
     /// The uptimenanoseconds the message was received from the network
     public let receivedAt: Date
     
-    public init(number: Int, receivedAt: Date = .now) {
+    public init(number: Int, receivedAt: Date = .init()) {
         self.number = number
         self.receivedAt = receivedAt
     }
