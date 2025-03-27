@@ -82,7 +82,7 @@ public final class WebSocketClient: Sendable {
         }
     }
     
-    public func disconnect(reason: String?) async {
+    public func disconnect(reason: String?) {
         self.transport.close(with: .normalClosure, reason: Data(reason?.utf8 ?? "Closing connection".utf8))
     }
     

@@ -104,7 +104,7 @@ final class WebSocketClientTests: XCTestCase {
                         XCTAssertEqual(metadata.number, 1)
                         logger.trace("message \(String(reflecting: metadata)) \(message.loggingDescription)")
                         expectation.fulfill()
-                        await client.disconnect(reason: "done testing")
+                        client.disconnect(reason: "done testing")
                     }
                 }
             }
