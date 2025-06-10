@@ -1,5 +1,3 @@
-import AsyncHelpers
-
 extension CodingUserInfoKey {
     public static let jsonMessageRegistry = CodingUserInfoKey(rawValue: "jsonMessageRegistry")!
 }
@@ -8,7 +6,7 @@ public final class JSONMessageRegistry: @unchecked Sendable {
     /// Registry for known inbound message names
     private var names: [String: JSONMessageName] = [:]
     /// Lock protecting the message name register
-    private let lock: Locking.FastLock = .init()
+    private let lock: NIOLock = .init()
     
     public init() {}
     
