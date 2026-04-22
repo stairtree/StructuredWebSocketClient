@@ -1,4 +1,4 @@
-// swift-tools-version:5.10
+// swift-tools-version:6.3
 //===----------------------------------------------------------------------===//
 //
 // This source file is part of the StructuredWebSocketClient open source project
@@ -15,11 +15,13 @@
 import PackageDescription
 
 let swiftSettings: [SwiftSetting] = [
-    .enableUpcomingFeature("ForwardTrailingClosures"),
+    .enableUpcomingFeature("AsyncCallerExecution"),
     .enableUpcomingFeature("ExistentialAny"),
-    .enableUpcomingFeature("ConciseMagicFile"),
-    .enableUpcomingFeature("DisableOutwardActorInference"),
-    .enableExperimentalFeature("StrictConcurrency=complete"),
+    // .enableUpcomingFeature("InternalImportsByDefault"),
+    // .enableUpcomingFeature("MemberImportVisibility"),
+    .enableUpcomingFeature("InferIsolatedConformances"),
+    .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
+    .enableUpcomingFeature("ImmutableWeakCaptures"),
 ]
 
 let package = Package(
@@ -36,7 +38,7 @@ let package = Package(
     ],
     dependencies: [
         // Swift logging API
-        .package(url: "https://github.com/apple/swift-log.git", from: "1.5.2"),
+        .package(url: "https://github.com/apple/swift-log.git", from: "1.11.0"),
         // AsyncChannel with backpressure
         .package(url: "https://github.com/apple/swift-async-algorithms", from: "1.0.0"),
     ],
